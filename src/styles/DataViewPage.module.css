@@ -1,0 +1,463 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 16px;
+  min-height: 100vh;
+}
+
+.header {
+  margin-bottom: 32px;
+}
+
+.header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: var(--color-text-primary);
+}
+
+.header p {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* Location Tabs */
+.locationTabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.06);
+}
+
+.locationTab {
+  padding: 10px 16px;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  color: var(--color-text-primary);
+}
+
+.locationTab:hover {
+  border-color: var(--color-primary);
+  background: #f0f4ff;
+}
+
+.locationTab.active {
+  background: linear-gradient(135deg, var(--color-primary), #1e3a8a);
+  color: white;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Control Panel */
+.controlPanel {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.controlGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.controlGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.controlLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.checkboxGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkboxItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 6px;
+  border-radius: 4px;
+}
+
+.checkboxItem:hover {
+  background: #f8f9fa;
+}
+
+.checkboxItem input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.radioGroup {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.radioItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.radioItem input[type="radio"] {
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+/* Range Controls */
+.rangeControls {
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.rangeInput {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rangeInput label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.rangeInput input {
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.rangeInput input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+}
+
+.rangeSeparator {
+  font-size: 18px;
+  color: var(--color-text-secondary);
+}
+
+/* Charts Section */
+.chartsGrid {
+  display: grid;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.chartCard {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Detail Section */
+.detailCard {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.detailHeader {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.selectGroup {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.selectGroup label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.selectGroup select {
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-family: inherit;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.selectGroup select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+}
+
+.detailContent {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.statBox {
+  background: linear-gradient(135deg, #f8f9fa, #f0f1f3);
+  padding: 12px;
+  border-radius: 8px;
+  border-left: 4px solid var(--color-primary);
+}
+
+.statLabel {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Data Table */
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  overflow-x: auto;
+  display: block;
+}
+
+.dataTableHeader {
+  background: #f8f9fa;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+}
+
+.dataTableHeader th {
+  padding: 12px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.dataTableBody tr {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  transition: background-color 0.2s ease;
+}
+
+.dataTableBody tr:hover {
+  background: #f8f9fa;
+}
+
+.dataTableBody td {
+  padding: 12px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+/* Collapsible Section */
+.collapsibleSection {
+  background: white;
+  border-radius: 12px;
+  padding: 0;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: white;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  transition: background-color 0.2s ease;
+  user-select: none;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 15px;
+}
+
+.sectionHeader:hover {
+  background: #f8f9fa;
+}
+
+.sectionToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--color-primary);
+  font-size: 14px;
+  transition: transform 0.3s ease;
+}
+
+.sectionToggle.collapsed {
+  transform: rotate(-90deg);
+}
+
+.sectionContent {
+  padding: 20px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+/* Meta Info */
+.metaInfo {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 8px 24px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.metaLabel {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.metaValue {
+  color: var(--color-text-secondary);
+}
+
+/* Footer Buttons */
+.footer {
+  display: flex;
+  gap: 12px;
+  padding: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  flex-wrap: wrap;
+}
+
+.exportButton {
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #059669, #047857);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.exportButton:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.exportButton:active {
+  transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container {
+    padding: 20px 12px;
+  }
+
+  .header h1 {
+    font-size: 24px;
+  }
+
+  .controlGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .rangeControls {
+    grid-template-columns: 1fr;
+  }
+
+  .detailHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .statGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .metaInfo {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .controlPanel {
+    padding: 16px;
+  }
+
+  .detailCard {
+    padding: 16px;
+  }
+
+  .sectionContent {
+    padding: 16px;
+  }
+
+  .dataTableHeader th,
+  .dataTableBody td {
+    padding: 8px;
+    font-size: 12px;
+  }
+}
