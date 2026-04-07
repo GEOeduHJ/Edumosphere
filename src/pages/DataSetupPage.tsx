@@ -50,18 +50,19 @@ const DataSetupPage: React.FC = () => {
         timezone: c.timezone ?? null
       }
     })
+
+    // Automatically set the query to use full default range and all metrics
+    dispatch({ type: 'SET_RANGE', payload: { startYear: 1991, endYear: 2026 } })
+    dispatch({ type: 'SET_METRICS', payload: ['temperature', 'temperature_max', 'temperature_min', 'precipitation'] })
+    // After selecting a location, go directly to the data view so the app fetches data
+    navigate('/view')
   }
 
   const handleRemoveLocation = (id: string) => {
     dispatch({ type: 'REMOVE_LOCATION', payload: id })
   }
 
-  const updateMetric = (metric: string, checked: boolean) => {
-    const next = checked
-      ? [...state.selectedMetrics, metric]
-      : state.selectedMetrics.filter(m => m !== metric)
-    dispatch({ type: 'SET_METRICS', payload: next as any })
-  }
+  // Metrics and range are set automatically; no manual controls here.
 
   return (
     <div className={styles.container}>
@@ -135,79 +136,10 @@ const DataSetupPage: React.FC = () => {
           )}
         </section>
 
-        {/* Time Range and Variables Section */}
         <section className={styles.card}>
           <h2 className={styles.sectionTitle}>⏱️ 기간 및 변수</h2>
-          
-          <div className={styles.rangeControls}>
-            <div className={styles.rangeInput}>
-              <label htmlFor="startYear">시작 연도</label>
-              <input
-                id="startYear"
-                type="number"
-                value={state.startYear}
-                onChange={e => {
-                  const userStart = Number(e.target.value)
-                  const newStart = Math.min(userStart, 1991)
-                  const newEnd = Math.max(state.endYear, 2020)
-                  dispatch({
-                    type: 'SET_RANGE',
-                    payload: { startYear: newStart, endYear: newEnd }
-                  })
-                }}
-              />
-            </div>
-            <div className={styles.rangeSeparator}>~</div>
-            <div className={styles.rangeInput}>
-              <label htmlFor="endYear">종료 연도</label>
-              <input
-                id="endYear"
-                type="number"
-                value={state.endYear}
-                onChange={e => {
-                  const userEnd = Number(e.target.value)
-                  const newStart = Math.min(state.startYear, 1991)
-                  const newEnd = Math.max(userEnd, 2020)
-                  dispatch({
-                    type: 'SET_RANGE',
-                    payload: { startYear: newStart, endYear: newEnd }
-                  })
-                }}
-              />
-            </div>
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '8px' }}>
-            💡 연간 편차 계산을 위해 1991–2020 기간이 자동으로 포함됩니다.
-          </div>
-
-          <div className={styles.metricsSection}>
-            <h3>변수 선택</h3>
-            <div className={styles.metricsPills}>
-              <label className={`${styles.metricPill} ${state.selectedMetrics.includes('temperature_max') ? styles.selected : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={state.selectedMetrics.includes('temperature_max')}
-                  onChange={e => updateMetric('temperature_max', e.target.checked)}
-                />
-                🌡️ 최대기온
-              </label>
-              <label className={`${styles.metricPill} ${state.selectedMetrics.includes('temperature_min') ? styles.selected : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={state.selectedMetrics.includes('temperature_min')}
-                  onChange={e => updateMetric('temperature_min', e.target.checked)}
-                />
-                ❄️ 최소기온
-              </label>
-              <label className={`${styles.metricPill} ${state.selectedMetrics.includes('precipitation') ? styles.selected : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={state.selectedMetrics.includes('precipitation')}
-                  onChange={e => updateMetric('precipitation', e.target.checked)}
-                />
-                💧 강수량
-              </label>
-            </div>
+          <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+            선택한 지점으로 자동 호출: 기간 1991–2026, 모든 변수(온도·최저/최고·강수).
           </div>
         </section>
       </div>
