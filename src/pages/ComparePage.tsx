@@ -206,7 +206,7 @@ const ComparePage: React.FC = () => {
                 style={{ marginLeft: 12, padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border)' }}
               >
                 <option value="">선택...</option>
-                {allYears.filter(y => y >= yearlyChartYearStart && y <= yearlyChartYearEnd).map(y => (
+                {Array.from({ length: 2026 - 1991 + 1 }, (_, i) => 1991 + i).map(y => (
                   <option key={y} value={y}>
                     {y}년
                   </option>
@@ -214,7 +214,8 @@ const ComparePage: React.FC = () => {
               </select>
             </label>
             {radarYear && (
-              <RadarChart series={yearlyFilteredSeries} year={radarYear} metric={metric} />
+              // Radar should always use the full series (not range-filtered)
+              <RadarChart series={series} year={radarYear} metric={metric} />
             )}
           </div>
         )}
@@ -290,7 +291,19 @@ const ComparePage: React.FC = () => {
             )}
 
             {monthlyChartType === 'breakdown' && (
-              <MonthlyBreakdownChart series={filteredSeries} year={selectedYear} metric={metric} />
+              // Provide per-series daily records filtered to the selected year so
+              // MonthlyBreakdownChart always has the correct per-series data.
+              <MonthlyBreakdownChart
+                series={filteredSeries.map(s => ({
+                  label: s.label,
+                  daily: s.daily.filter(d => {
+                    const [y] = d.date.split('-')
+                    return Number(y) === selectedYear
+                  })
+                }))}
+                year={selectedYear}
+                metric={metric}
+              />
             )}
 
             {monthlyChartType === 'cumulative' && metric === 'precipitation' && (
