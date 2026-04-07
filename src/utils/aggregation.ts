@@ -1,5 +1,8 @@
 import { DailyWeatherRecord, MonthlyClimateRecord, YearlyClimateRecord } from '../types/climate'
 
+const DEFAULT_BASELINE_START = 1991
+const DEFAULT_BASELINE_END = 2020
+
 export function aggregateDailyToMonthly(daily: DailyWeatherRecord[]): MonthlyClimateRecord[] {
   const map = new Map<string, { year: number; month: number; tempSum: number; tempCount: number; precipSum: number; precipCount: number; daysCounted: number }>()
 
@@ -124,20 +127,19 @@ export function computeMonthlyClimatology(monthlyRecords: MonthlyClimateRecord[]
     return result
   }
   
-  if (!baselineStart || !baselineEnd) {
+  // Default baseline is 1991-2020. If that baseline isn't present in the
+  // dataset, fall back to the original auto-detection (first 30 years).
+  const bsStart = baselineStart == null ? DEFAULT_BASELINE_START : baselineStart
+  const bsEnd = baselineEnd == null ? DEFAULT_BASELINE_END : baselineEnd
+
+  const hasBaseline = allYears.some(y => y >= bsStart && y <= bsEnd)
+  if (!hasBaseline) {
     // Use first 30 years or all data if less than 30 years
     actualStart = allYears[0]
     actualEnd = Math.min(actualStart + 29, allYears[allYears.length - 1])
   } else {
-    // Check if baseline is in data; if not, use available range
-    const hasBaseline = allYears.some(y => y >= baselineStart && y <= baselineEnd)
-    if (!hasBaseline) {
-      actualStart = allYears[0]
-      actualEnd = Math.min(actualStart + 29, allYears[allYears.length - 1])
-    } else {
-      actualStart = baselineStart
-      actualEnd = baselineEnd
-    }
+    actualStart = bsStart
+    actualEnd = bsEnd
   }
   
   for (let m = 1; m <= 12; m++) {
@@ -200,20 +202,19 @@ export function computeAnnualClimatology(yearly: YearlyClimateRecord[], baseline
     }
   }
   
-  if (!baselineStart || !baselineEnd) {
+  // Default baseline is 1991-2020. If that baseline isn't present in the
+  // dataset, fall back to the original auto-detection (first 30 years).
+  const bsStartA = baselineStart == null ? DEFAULT_BASELINE_START : baselineStart
+  const bsEndA = baselineEnd == null ? DEFAULT_BASELINE_END : baselineEnd
+
+  const hasBaselineA = allYears.some(y => y >= bsStartA && y <= bsEndA)
+  if (!hasBaselineA) {
     // Use first 30 years or all data if less than 30 years
     actualStart = allYears[0]
     actualEnd = Math.min(actualStart + 29, allYears[allYears.length - 1])
   } else {
-    // Check if baseline is in data; if not, use available range
-    const hasBaseline = allYears.some(y => y >= baselineStart && y <= baselineEnd)
-    if (!hasBaseline) {
-      actualStart = allYears[0]
-      actualEnd = Math.min(actualStart + 29, allYears[allYears.length - 1])
-    } else {
-      actualStart = baselineStart
-      actualEnd = baselineEnd
-    }
+    actualStart = bsStartA
+    actualEnd = bsEndA
   }
   
   const entries = yearly.filter(y => y.year >= actualStart && y.year <= actualEnd)
