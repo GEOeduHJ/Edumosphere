@@ -53,8 +53,8 @@ const ComparePage: React.FC = () => {
   })
 
   const allYears = [...new Set(series.flatMap(s => s.yearly.map(y => y.year)))].sort((a, b) => a - b)
-  const defaultStartYear = allYears.length > 0 ? allYears[0] : 2016
-  const defaultEndYear = allYears.length > 0 ? allYears[allYears.length - 1] : 2026
+  const defaultStartYear = allYears.length > 0 ? allYears[0] : 1991
+  const defaultEndYear = allYears.length > 0 ? allYears[allYears.length - 1] : 2020
   const effectiveStartYear = filterStartYear ?? defaultStartYear
   const effectiveEndYear = filterEndYear ?? defaultEndYear
 
