@@ -22,8 +22,7 @@ import styles from '../styles/ComparePage.module.css'
 const ComparePage: React.FC = () => {
   const { state } = useAppState()
   const [metric, setMetric] = useState<'temperature' | 'precipitation'>('temperature')
-  const [filterStartYear, setFilterStartYear] = useState<number | null>(null)
-  const [filterEndYear, setFilterEndYear] = useState<number | null>(null)
+  
   const [pairwise, setPairwise] = useState(false)
   
   // Year-wise options
@@ -55,8 +54,8 @@ const ComparePage: React.FC = () => {
   const allYears = [...new Set(series.flatMap(s => s.yearly.map(y => y.year)))].sort((a, b) => a - b)
   const defaultStartYear = allYears.length > 0 ? allYears[0] : 1991
   const defaultEndYear = allYears.length > 0 ? allYears[allYears.length - 1] : 2020
-  const effectiveStartYear = filterStartYear ?? defaultStartYear
-  const effectiveEndYear = filterEndYear ?? defaultEndYear
+  const effectiveStartYear = defaultStartYear
+  const effectiveEndYear = defaultEndYear
 
   const filteredSeries = series.map(s => ({
     label: s.label,
@@ -140,17 +139,7 @@ const ComparePage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(0, 0, 0, 0.06)' }}>
-          <RangeSlider
-            min={defaultStartYear}
-            max={defaultEndYear}
-            start={effectiveStartYear}
-            end={effectiveEndYear}
-            onStartChange={setFilterStartYear}
-            onEndChange={setFilterEndYear}
-            label="기간 필터"
-          />
-        </div>
+        {/* 전역 기간 필터 제거 — 필요하면 섹션별 슬라이더를 사용하세요 */}
       </div>
 
       {/* Yearly Section */}

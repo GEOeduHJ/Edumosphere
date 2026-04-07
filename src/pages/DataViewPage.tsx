@@ -23,8 +23,7 @@ const DataViewPage: React.FC = () => {
   const [metric, setMetric] = useState<'temperature' | 'precipitation'>('temperature')
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
-  const [filterStartYear, setFilterStartYear] = useState<number | null>(null)
-  const [filterEndYear, setFilterEndYear] = useState<number | null>(null)
+  
   const [expandedMonthly, setExpandedMonthly] = useState(false)
   const [expandedYearly, setExpandedYearly] = useState(false)
   const [expandedDailyTable, setExpandedDailyTable] = useState(false)
@@ -59,8 +58,8 @@ const DataViewPage: React.FC = () => {
   const allYears = [...new Set([...monthly.map(m => m.year), ...yearly.map(y => y.year)])].sort((a, b) => a - b)
   const defaultStartYear = allYears.length > 0 ? allYears[0] : 1991
   const defaultEndYear = allYears.length > 0 ? allYears[allYears.length - 1] : 2020
-  const effectiveStartYear = filterStartYear ?? defaultStartYear
-  const effectiveEndYear = filterEndYear ?? defaultEndYear
+  const effectiveStartYear = defaultStartYear
+  const effectiveEndYear = defaultEndYear
   
   const filteredMonthly = monthly.filter(m => m.year >= effectiveStartYear && m.year <= effectiveEndYear)
   const filteredYearly = yearly.filter(y => y.year >= effectiveStartYear && y.year <= effectiveEndYear)
@@ -160,15 +159,7 @@ const DataViewPage: React.FC = () => {
           </div>
         </div>
 
-        <RangeSlider
-          min={defaultStartYear}
-          max={defaultEndYear}
-          start={effectiveStartYear}
-          end={effectiveEndYear}
-          onStartChange={setFilterStartYear}
-          onEndChange={setFilterEndYear}
-          label="기간 필터"
-        />
+        {/* 전역 기간 필터는 제거됨 — 그래프별 슬라이더 사용 */}
       </div>
 
       {/* Charts */}
@@ -255,35 +246,22 @@ const DataViewPage: React.FC = () => {
         )}
         {selectedCharts.includes('radar') && yearly.length > 0 && (
           <div className={styles.chartCard}>
-            <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'flex-end' }}>
-              <div style={{ flex: 1 }}>
-                <RangeSlider
-                  min={defaultStartYear}
-                  max={defaultEndYear}
-                  start={mixedStart}
-                  end={mixedEnd}
-                  onStartChange={setMixedChartStart}
-                  onEndChange={setMixedChartEnd}
-                  label="방사형 그래프 - 기간"
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px', color: 'var(--color-text-primary)' }}>
-                  연도 선택
-                </label>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ marginBottom: 6, display: 'inline-block' }}>
+                <strong>연도 선택:</strong>
                 <select
                   value={radarYear ?? ''}
                   onChange={e => setRadarYear(e.target.value ? Number(e.target.value) : null)}
-                  style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', minWidth: '120px' }}
+                  style={{ marginLeft: 12, padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border)' }}
                 >
                   <option value="">선택...</option>
-                  {allYears.filter(y => y >= mixedStart && y <= mixedEnd).map(y => (
+                  {allYears.map(y => (
                     <option key={y} value={y}>
                       {y}년
                     </option>
                   ))}
                 </select>
-              </div>
+              </label>
             </div>
             {radarYear && (
               <RadarChart series={[{ label: active.name, monthly: mixedMonthly }]} year={radarYear} metric={metric} />

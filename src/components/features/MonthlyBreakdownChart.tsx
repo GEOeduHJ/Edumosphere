@@ -11,29 +11,26 @@ type Props = {
 const colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
 
 const MonthlyBreakdownChart: React.FC<Props> = ({ series, year, metric = 'temperature' }) => {
-  // Group daily data by month
-  const monthlyGroups = new Map<number, DailyWeatherRecord[]>()
-  
+  // Build a set of months present in the provided series for the given year
+  const monthSet = new Set<number>()
   series.forEach(s => {
     s.daily.forEach(d => {
       const [y, m] = d.date.split('-')
-      if (Number(y) === year) {
-        const month = Number(m)
-        if (!monthlyGroups.has(month)) {
-          monthlyGroups.set(month, [])
-        }
-        monthlyGroups.get(month)!.push(d)
-      }
+      if (Number(y) === year) monthSet.add(Number(m))
     })
   })
 
-  const sortedMonths = Array.from(monthlyGroups.keys()).sort((a, b) => a - b)
+  const sortedMonths = Array.from(monthSet).sort((a, b) => a - b)
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '20px' }}>
       {sortedMonths.map(month => {
-        const monthData = monthlyGroups.get(month) || []
         const traces = series.map((s, idx) => {
+          // For each series, filter its own daily records for the target year/month
+          const monthData = s.daily.filter(d => {
+            const [y, m] = d.date.split('-')
+            return Number(y) === year && Number(m) === month
+          })
           const dateStrings = monthData.map(d => d.date)
           const yData = monthData.map(d => {
             if (metric === 'precipitation') {
@@ -41,7 +38,7 @@ const MonthlyBreakdownChart: React.FC<Props> = ({ series, year, metric = 'temper
             }
             // For temperature, show average of max and min
             if (d.temperatureMax !== null && d.temperatureMax !== undefined && d.temperatureMin !== null && d.temperatureMin !== undefined) {
-              return ((d.temperatureMax + d.temperatureMin) / 2)
+              return (d.temperatureMax + d.temperatureMin) / 2
             }
             return null
           })

@@ -54,8 +54,6 @@ const DataSetupPage: React.FC = () => {
     // Automatically set the query to use full default range and all metrics
     dispatch({ type: 'SET_RANGE', payload: { startYear: 1991, endYear: 2026 } })
     dispatch({ type: 'SET_METRICS', payload: ['temperature', 'temperature_max', 'temperature_min', 'precipitation'] })
-    // After selecting a location, go directly to the data view so the app fetches data
-    navigate('/view')
   }
 
   const handleRemoveLocation = (id: string) => {
