@@ -180,7 +180,7 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
       }
     }
 
-    // when stylesMap or iso->name mapping changes, update existing layers' styles
+    // when stylesMap, iso->name mapping, or ISO-keyed styles change, update existing layers' styles
     try {
       // small debounce - schedule update on next tick
       setTimeout(() => {
@@ -200,7 +200,9 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
                   if (maybe) nameForIso = String(maybe)
                 } catch (e) {}
               }
-              const customStyle = findStyleFor(stylesMap, nameForIso, iso) || {}
+              // prefer ISO-keyed stylesMapIso, then fall back to name-keyed stylesMap
+              const isoKeyU = (iso || '').toUpperCase()
+              const customStyle = ((stylesMapIso && stylesMapIso[isoKeyU]) || findStyleFor(stylesMap, nameForIso, iso)) || {}
               // coerce fillOpacity
               let fo: number | undefined = undefined
               if (typeof customStyle.fillOpacity === 'number') fo = customStyle.fillOpacity
@@ -235,7 +237,7 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
     }
   }, [iso3List.join(','), enabled, level, strokeColor, interactive, map])
 
-  // update styles of already-loaded ADM layers when stylesMap or isoToNameMap change
+  // update styles of already-loaded ADM layers when stylesMap, isoToNameMap or stylesMapIso change
   useEffect(() => {
     try {
       for (const [k, geo] of layersRef.current.entries()) {
@@ -252,7 +254,9 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
               if (maybe) nameForIso = String(maybe)
             } catch (e) {}
           }
-          const customStyle = findStyleFor(stylesMap, nameForIso, iso) || {}
+          // prefer ISO-keyed stylesMapIso, then fall back to name-keyed stylesMap
+          const isoKeyU = (iso || '').toUpperCase()
+          const customStyle = ((stylesMapIso && stylesMapIso[isoKeyU]) || findStyleFor(stylesMap, nameForIso, iso)) || {}
           let fo: number | undefined = undefined
           if (typeof customStyle.fillOpacity === 'number') fo = customStyle.fillOpacity
           else if (typeof customStyle.fillOpacity === 'string' && customStyle.fillOpacity.trim() !== '' && !isNaN(Number(customStyle.fillOpacity))) fo = Number(customStyle.fillOpacity)
@@ -268,7 +272,7 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
         } catch (e) {}
       }
     } catch (e) {}
-  }, [stylesMap, isoToNameMap, level])
+  }, [stylesMap, isoToNameMap, level, stylesMapIso])
 
   return null
 }
