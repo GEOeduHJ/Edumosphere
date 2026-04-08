@@ -11,9 +11,10 @@ type Props = {
   interactive?: boolean
   stylesMap?: Record<string, any>
   isoToNameMap?: Record<string, string>
+  stylesMapIso?: Record<string, any>
 }
 
-const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM1', strokeColor = '#333', interactive = false, stylesMap, isoToNameMap }) => {
+const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM1', strokeColor = '#333', interactive = false, stylesMap, isoToNameMap, stylesMapIso }) => {
   const map = useMap()
   const layersRef = useRef<Map<string, L.Layer>>(new Map())
 
@@ -126,7 +127,10 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
           return undefined
         }
 
-        const custom = findStyleFor(stylesMap, inferredCountryName, iso3) || {}
+        // prefer explicit ISO-keyed style mapping when available
+        const isoKey = (iso3 || '').toUpperCase()
+        const customIso = (stylesMapIso && stylesMapIso[isoKey]) || undefined
+        const custom = (customIso || findStyleFor(stylesMap, inferredCountryName, iso3)) || {}
         try { console.debug && console.debug('AdminBoundariesLayer style lookup', { iso3, inferredCountryName, custom }) } catch (e) {}
 
         const computeStyle = (feature: any) => {
