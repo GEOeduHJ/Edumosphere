@@ -82,13 +82,13 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
       const key = `${iso3}|${level}`
       if (layersRef.current.has(key)) return
       try {
-        const gj = await fetchAdminBoundaries(iso3, level)
-        if (!mounted || !gj) {
-          // helpful debug when remote fetch failed (CORS or 404)
-          // eslint-disable-next-line no-console
-          console.warn('AdminBoundariesLayer: no GeoJSON returned for', iso3, level)
-          return
-        }
+          const gj = await fetchAdminBoundaries(iso3, level)
+          if (!mounted || !gj) {
+            // helpful debug when remote fetch failed (CORS or 404)
+            // eslint-disable-next-line no-console
+            console.warn('AdminBoundariesLayer: no GeoJSON returned for', iso3, level, 'mounted?', mounted)
+            return
+          }
 
         // derive country-level custom style (stylesMap keyed by country name)
         const countryName = (isoToNameMap && isoToNameMap[iso3]) || undefined
@@ -131,17 +131,30 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
         const isoKey = (iso3 || '').toUpperCase()
         const customIso = (stylesMapIso && stylesMapIso[isoKey]) || undefined
         const custom = (customIso || findStyleFor(stylesMap, inferredCountryName, iso3)) || {}
-        try { console.debug && console.debug('AdminBoundariesLayer style lookup', { iso3, inferredCountryName, custom }) } catch (e) {}
+        try { console.log('AdminBoundariesLayer style lookup', { iso3, inferredCountryName, isoKey, custom }) } catch (e) {}
+
+        // debug: log fetched feature count and mapping entries to help diagnose missing styles
+        try {
+          // eslint-disable-next-line no-console
+          console.log('AdminBoundariesLayer: fetched ADM for', iso3, level, 'features:', (gj && Array.isArray((gj as any).features)) ? (gj as any).features.length : 0, 'isoToNameMapEntry:', isoToNameMap && isoToNameMap[iso3], 'stylesMapIsoEntry:', stylesMapIso && stylesMapIso[isoKey], 'stylesMapEntry:', (inferredCountryName && stylesMap) ? stylesMap[inferredCountryName] : undefined)
+        } catch (e) {}
 
         const computeStyle = (feature: any) => {
           const base: any = { color: s.color || strokeColor, weight: s.weight || 1.0 }
           const out: any = { ...base }
           if (custom && custom.fillColor) out.fillColor = custom.fillColor
-          // coerce fillOpacity from string/number if present, otherwise default 0 (no fill)
+          // coerce fillOpacity from string/number if present.
+          // If a fillColor is provided but fillOpacity is undefined, use a sensible default so fills are visible.
           let fo: number | undefined = undefined
           if (typeof custom.fillOpacity === 'number') fo = custom.fillOpacity
           else if (typeof custom.fillOpacity === 'string' && custom.fillOpacity.trim() !== '' && !isNaN(Number(custom.fillOpacity))) fo = Number(custom.fillOpacity)
-          out.fillOpacity = typeof fo === 'number' ? fo : 0
+          if (typeof fo === 'number') {
+            out.fillOpacity = fo
+          } else if (custom && custom.fillColor) {
+            out.fillOpacity = 0.6
+          } else {
+            out.fillOpacity = 0
+          }
           out.fill = out.fillOpacity > 0
           return out
         }
@@ -159,6 +172,10 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
         })
 
         geo.addTo(map)
+        // Force-apply computed styles immediately to ensure fills are rendered
+        try {
+          try { (geo as any).setStyle && (geo as any).setStyle(computeStyle) } catch (e) {}
+        } catch (e) {}
         // schedule bringToFront to ensure DOM order after add
         try {
           setTimeout(() => {
@@ -211,7 +228,13 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
                 const base: any = { color: s.color || strokeColor, weight: s.weight || 1.0 }
                 const out: any = { ...base }
                 if (customStyle && customStyle.fillColor) out.fillColor = customStyle.fillColor
-                out.fillOpacity = typeof fo === 'number' ? fo : 0
+                if (typeof fo === 'number') {
+                  out.fillOpacity = fo
+                } else if (customStyle && customStyle.fillColor) {
+                  out.fillOpacity = 0.6
+                } else {
+                  out.fillOpacity = 0
+                }
                 out.fill = out.fillOpacity > 0
                 return out
               }
@@ -264,7 +287,13 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
             const base: any = { color: (level && ({ADM0: '#333', ADM1: '#444', ADM2: '#666', ADM3: '#888', ADM4: '#aaa', ADM5: '#ccc'}[level])) || strokeColor, weight: 1.0 }
             const out: any = { ...base }
             if (customStyle && customStyle.fillColor) out.fillColor = customStyle.fillColor
-            out.fillOpacity = typeof fo === 'number' ? fo : 0
+            if (typeof fo === 'number') {
+              out.fillOpacity = fo
+            } else if (customStyle && customStyle.fillColor) {
+              out.fillOpacity = 0.6
+            } else {
+              out.fillOpacity = 0
+            }
             out.fill = out.fillOpacity > 0
             return out
           }

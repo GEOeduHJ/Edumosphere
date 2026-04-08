@@ -173,7 +173,33 @@ export async function fetchAdminBoundaries(iso3: string, level: string = 'ADM1')
   if (!iso3) return null
   const code = iso3.toUpperCase()
   const key = `${code}|${level}`
-  if (adminCache.has(key)) return adminCache.get(key) || null
+  if (adminCache.has(key)) {
+    const cached = adminCache.get(key)
+    if (cached) return cached
+    // If we previously cached a null (failed attempt), allow a retry for ADM1
+    // if a local global ADM1 file now exists. This handles the case where
+    // the large ADM1 composite was added after an earlier failed lookup.
+    if ((level || '').toUpperCase() === 'ADM1') {
+      const localCandidatesCheck = [
+        '/data/geoBoundaries/ADM1.geojson',
+        '/data/geoBoundaries/geoBoundaries-ADM1.geojson',
+        '/data/geoBoundaries/ADM1-global.geojson',
+        '/data/geoBoundaries/gbOpen_ADM1.geojson'
+      ]
+      let found = false
+      for (const p of localCandidatesCheck) {
+        try {
+          const r = await fetch(p, { method: 'HEAD' })
+          if (r && r.ok) { found = true; break }
+        } catch (e) {}
+      }
+      if (!found) return null
+      // allow reattempt by removing the cached null
+      adminCache.delete(key)
+    } else {
+      return null
+    }
+  }
   // First: if requesting ADM1, prefer a single global local file if present (official global ADM1 download ~350MB).
   // This avoids repeated remote fetches and CORS/redirect issues for large combined files.
   try {
