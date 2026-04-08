@@ -13,6 +13,10 @@ import MapInitializer from '../components/map/MapInitializer'
 import BasemapBoundaries from '../components/map/BasemapBoundaries'
 import Graticule from '../components/map/Graticule'
 import { getLabelText } from '../utils/label'
+import { SelectedCountry } from '../types/country'
+import { fetchWorldCountries, getNameToIsoMap } from '../services/geoBoundaries'
+import AdminBoundariesLayer from '../components/map/AdminBoundariesLayer'
+import CountryComparePanel from '../components/features/CountryComparePanel'
 
 const MapPage: React.FC = () => {
   const { state } = useAppState()
@@ -22,13 +26,18 @@ const MapPage: React.FC = () => {
   const bounds = useMemo(() => (positions.length > 0 ? new LatLngBounds(positions) : undefined), [positions])
 
   const { data, loading } = useClimateQuery(state)
-  const [selectedCountries, setSelectedCountries] = useState<string[]>(() => {
+  // canonical selection stored as SelectedCountry[] (iso3, iso2, name)
+  const [selectedCountries, setSelectedCountries] = useState<SelectedCountry[]>(() => {
     try {
       const raw = localStorage.getItem('selected_countries')
-      return raw ? JSON.parse(raw) : []
-    } catch (_) {
+      if (!raw) return []
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed) || parsed.length === 0) return []
+      // if persisted as object array with iso3, assume canonical format
+      if (typeof parsed[0] === 'object' && parsed[0] !== null && parsed[0].iso3) return parsed as SelectedCountry[]
+      // otherwise persistence may be old string[] form — we'll populate pendingSelected and convert later
       return []
-    }
+    } catch (e) { return [] }
   })
 
   useEffect(() => {
@@ -65,7 +74,8 @@ const MapPage: React.FC = () => {
     if (!selectedCountries || selectedCountries.length === 0) return
     setCountryStyles(prev => {
       const next = { ...prev }
-      for (const name of selectedCountries) {
+      for (const sc of selectedCountries) {
+        const name = sc.name
         next[name] = {
           ...(next[name] || {}),
           fillColor: editorColor,
@@ -86,7 +96,7 @@ const MapPage: React.FC = () => {
     if (!selectedCountries || selectedCountries.length === 0) return
     setCountryStyles(prev => {
       const next = { ...prev }
-      for (const name of selectedCountries) delete next[name]
+      for (const sc of selectedCountries) delete next[sc.name]
       try {
         localStorage.setItem('country_styles', JSON.stringify(next))
       } catch (e) {}
@@ -167,9 +177,10 @@ const MapPage: React.FC = () => {
               outCtx.drawImage(canvas, 0, 0, outCanvas.width, outCanvas.height)
 
               // overlay labels for selected countries using their bbox-centers
+              const selectedNameSet = new Set((selectedCountries || []).map(s => s.name))
               for (const f of features) {
                 const name = getLabelText(f)
-                if (!name || !selectedCountries.includes(name)) continue
+                if (!name || !selectedNameSet.has(name)) continue
                 const geom = f && f.geometry
                 if (!geom || !geom.coordinates) continue
 
@@ -273,7 +284,29 @@ const MapPage: React.FC = () => {
 
   const [allCountries, setAllCountries] = useState<string[]>([])
   const [search, setSearch] = useState('')
-  const [pendingSelected, setPendingSelected] = useState<string[]>(selectedCountries)
+  // pendingSelected remains a list of country NAMES used by the selection UI
+  const [pendingSelected, setPendingSelected] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('selected_countries')
+      if (!raw) return []
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed) || parsed.length === 0) return []
+      if (typeof parsed[0] === 'string') return parsed as string[]
+      if (typeof parsed[0] === 'object' && parsed[0] !== null && parsed[0].name) return (parsed as any[]).map(p => p.name)
+      return []
+    } catch (e) { return [] }
+  })
+
+  const [nameToIso3, setNameToIso3] = useState<Record<string, string>>({})
+  const [showAdminBoundaries, setShowAdminBoundaries] = useState(false)
+  const [adminLevel, setAdminLevel] = useState<string>('ADM1')
+  const [adminInteractive, setAdminInteractive] = useState<boolean>(false)
+
+  const selectedIso3 = useMemo(() => {
+    try {
+      return (selectedCountries || []).map(s => (s && s.iso3) || null).filter(Boolean) as string[]
+    } catch (e) { return [] }
+  }, [selectedCountries])
 
   const [editStep, setEditStep] = useState<number>(1)
   const [tempEdits, setTempEdits] = useState<Record<string, any>>({})
@@ -301,7 +334,8 @@ const MapPage: React.FC = () => {
       // apply color/opacity edits
       setCountryStyles(prev => {
         const next = { ...prev }
-        for (const name of selectedCountries) {
+        for (const sc of selectedCountries) {
+          const name = sc.name
           const t = tempEdits[name]
           if (!t) continue
           next[name] = { ...(next[name] || {}), fillColor: t.fillColor, fillOpacity: t.fillOpacity }
@@ -316,7 +350,8 @@ const MapPage: React.FC = () => {
       // apply label/text edits
       setCountryStyles(prev => {
         const next = { ...prev }
-        for (const name of selectedCountries) {
+        for (const sc of selectedCountries) {
+          const name = sc.name
           const t = tempEdits[name]
           if (!t) continue
           next[name] = { ...(next[name] || {}), label: t.label || undefined, labelColor: t.labelColor, fontSize: t.fontSize }
@@ -373,26 +408,32 @@ const MapPage: React.FC = () => {
 
   useEffect(() => {
     let mounted = true
-    fetch('/data/world-countries.geojson')
-      .then(r => r.json())
+    fetchWorldCountries()
       .then((gj: any) => {
         if (!mounted) return
         const features = Array.isArray(gj && gj.features) ? gj.features : []
         const rawNames = features.map((f: any) => getLabelText(f)).filter((x: any) => typeof x === 'string') as string[]
         const names = Array.from(new Set(rawNames)).sort((a, b) => a.localeCompare(b))
         setAllCountries(names)
+        try {
+          const map = getNameToIsoMap()
+          setNameToIso3(map)
+          // If pending selections (legacy or UI) exist, convert to canonical SelectedCountry objects
+          if (pendingSelected && pendingSelected.length > 0) {
+            const scs: SelectedCountry[] = pendingSelected.map(n => ({ name: n, iso3: (map && map[n]) || '', iso2: undefined }))
+            setSelectedCountries(prev => (prev && prev.length > 0 ? prev : scs))
+          }
+        } catch (e) {}
       })
       .catch(() => {
         setAllCountries([])
       })
-    return () => {
-      mounted = false
-    }
+    return () => { mounted = false }
   }, [])
 
   // keep pending buffer in sync when external selection changes (e.g., map clicks)
   useEffect(() => {
-    setPendingSelected(selectedCountries)
+    setPendingSelected((selectedCountries || []).map(s => s.name))
   }, [selectedCountries])
 
   const filteredCountries = useMemo(() => {
@@ -450,6 +491,27 @@ const MapPage: React.FC = () => {
             <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <input type="checkbox" checked={showLongitudes} onChange={e => setShowLongitudes(e.target.checked)} /> 경선 (10° 간격)
             </label>
+            <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input type="checkbox" checked={showAdminBoundaries} onChange={e => setShowAdminBoundaries(e.target.checked)} /> 세부 행정구역 보기
+            </label>
+            {showAdminBoundaries ? (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  수준:
+                  <select value={adminLevel} onChange={e => setAdminLevel(e.target.value)} style={{ marginLeft: 6 }}>
+                    <option value="ADM0">ADM0</option>
+                    <option value="ADM1">ADM1</option>
+                    <option value="ADM2">ADM2</option>
+                    <option value="ADM3">ADM3</option>
+                    <option value="ADM4">ADM4</option>
+                    <option value="ADM5">ADM5</option>
+                  </select>
+                </label>
+                <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input type="checkbox" checked={adminInteractive} onChange={e => setAdminInteractive(e.target.checked)} /> 행정구역 상호작용 허용
+                </label>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -458,7 +520,10 @@ const MapPage: React.FC = () => {
             <input className={styles.countrySearch} placeholder="국가 검색..." value={search} onChange={e => setSearch(e.target.value)} />
             <button onClick={() => setPendingSelected(allCountries)}>전체선택</button>
             <button onClick={() => setPendingSelected([])}>전체해제</button>
-            <button onClick={() => setSelectedCountries(pendingSelected)}>적용</button>
+            <button onClick={() => {
+              const scs: SelectedCountry[] = (pendingSelected || []).map(n => ({ name: n, iso3: (nameToIso3 && nameToIso3[n]) || '', iso2: undefined }))
+              setSelectedCountries(scs)
+            }}>적용</button>
             <button onClick={() => {
               // full reset: clear selections, pending buffer, applied styles, temp edits and persisted storage
               setSelectedCountries([])
@@ -489,6 +554,10 @@ const MapPage: React.FC = () => {
           <div>선택된 국가: {selectedCountries.length}</div>
         </div>
 
+        <div style={{ marginTop: 12 }}>
+          <CountryComparePanel iso3List={selectedIso3} />
+        </div>
+
         <div style={{ marginLeft: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className={styles.stepper}>
             <div className={`${styles.stepItem} ${editStep === 1 ? styles.activeStep : ''}`}>1. 색상 선택</div>
@@ -507,21 +576,24 @@ const MapPage: React.FC = () => {
                       const c = e.target.value
                       setTempEdits(prev => {
                         const next = { ...prev }
-                        for (const name of selectedCountries) next[name] = { ...(next[name] || {}), fillColor: c }
+                        for (const sc of selectedCountries) next[sc.name] = { ...(next[sc.name] || {}), fillColor: c }
                         return next
                       })
                     }} />
                   </label>
                 </div>
                 <div className={styles.editorList}>
-                  {selectedCountries.map(name => (
-                    <div key={name} className={styles.editorRow}>
-                      <div style={{ width: 220 }}>{name}</div>
-                      <input type="color" value={tempEdits[name]?.fillColor || '#ffcc33'} onChange={e => setTempEdits(prev => ({ ...prev, [name]: { ...(prev[name] || {}), fillColor: e.target.value } }))} />
-                      <input type="range" min={0} max={1} step={0.05} value={tempEdits[name]?.fillOpacity ?? 0.9} onChange={e => setTempEdits(prev => ({ ...prev, [name]: { ...(prev[name] || {}), fillOpacity: Number(e.target.value) } }))} style={{ width: 140, marginLeft: 8 }} />
-                      <div style={{ width: 56, textAlign: 'right' }}>{Math.round((tempEdits[name]?.fillOpacity ?? 0.9) * 100)}%</div>
-                    </div>
-                  ))}
+                  {selectedCountries.map(sc => {
+                    const name = sc.name
+                    return (
+                      <div key={name} className={styles.editorRow}>
+                        <div style={{ width: 220 }}>{name}</div>
+                        <input type="color" value={tempEdits[name]?.fillColor || '#ffcc33'} onChange={e => setTempEdits(prev => ({ ...prev, [name]: { ...(prev[name] || {}), fillColor: e.target.value } }))} />
+                        <input type="range" min={0} max={1} step={0.05} value={tempEdits[name]?.fillOpacity ?? 0.9} onChange={e => setTempEdits(prev => ({ ...prev, [name]: { ...(prev[name] || {}), fillOpacity: Number(e.target.value) } }))} style={{ width: 140, marginLeft: 8 }} />
+                        <div style={{ width: 56, textAlign: 'right' }}>{Math.round((tempEdits[name]?.fillOpacity ?? 0.9) * 100)}%</div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -530,14 +602,17 @@ const MapPage: React.FC = () => {
               <div>
                 <div style={{ marginBottom: 8 }}>2단계: 선택한 국가 내부에 들어갈 글자를 입력하세요.</div>
                 <div className={styles.editorList}>
-                  {selectedCountries.map(name => (
-                    <div key={name} className={styles.editorRow}>
-                      <div style={{ width: 220 }}>{name}</div>
-                      <input type="text" placeholder="레이블 텍스트" value={tempEdits[name]?.label || ''} onChange={e => setTempEdits(prev => ({ ...prev, [name]: { ...(prev[name] || {}), label: e.target.value } }))} />
-                      <input type="color" value={tempEdits[name]?.labelColor || '#000000'} onChange={e => setTempEdits(prev => ({ ...prev, [name]: { ...(prev[name] || {}), labelColor: e.target.value } }))} style={{ marginLeft: 8 }} />
-                      <input type="number" min={8} max={48} value={tempEdits[name]?.fontSize ?? 16} onChange={e => setTempEdits(prev => ({ ...prev, [name]: { ...(prev[name] || {}), fontSize: Number(e.target.value) } }))} style={{ width: 72, marginLeft: 8 }} />
-                    </div>
-                  ))}
+                  {selectedCountries.map(sc => {
+                    const name = sc.name
+                    return (
+                      <div key={name} className={styles.editorRow}>
+                        <div style={{ width: 220 }}>{name}</div>
+                        <input type="text" placeholder="레이블 텍스트" value={tempEdits[name]?.label || ''} onChange={e => setTempEdits(prev => ({ ...prev, [name]: { ...(prev[name] || {}), label: e.target.value } }))} />
+                        <input type="color" value={tempEdits[name]?.labelColor || '#000000'} onChange={e => setTempEdits(prev => ({ ...prev, [name]: { ...(prev[name] || {}), labelColor: e.target.value } }))} style={{ marginLeft: 8 }} />
+                        <input type="number" min={8} max={48} value={tempEdits[name]?.fontSize ?? 16} onChange={e => setTempEdits(prev => ({ ...prev, [name]: { ...(prev[name] || {}), fontSize: Number(e.target.value) } }))} style={{ width: 72, marginLeft: 8 }} />
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -573,14 +648,18 @@ const MapPage: React.FC = () => {
             <MapInitializer bounds={bounds} />
             <BasemapBoundaries />
             <GeoJsonLayer
-              selectedIds={selectedCountries}
-              onSelectionChange={setSelectedCountries}
+              selectedIds={(selectedCountries || []).map(s => s.name)}
+              onSelectionChange={(names: string[]) => {
+                const scs: SelectedCountry[] = (names || []).map(n => ({ name: n, iso3: (nameToIso3 && nameToIso3[n]) || '', iso2: undefined }))
+                setSelectedCountries(scs)
+              }}
               stylesMap={countryStyles}
               fitOnLoad={!bounds}
               editable={true}
               exporting={exporting}
               onLoad={geo => (geoLayerRef.current = geo)}
             />
+            {showAdminBoundaries && <AdminBoundariesLayer iso3List={selectedIso3} enabled={showAdminBoundaries} level={adminLevel} interactive={adminInteractive} />}
             <Graticule
               showEquator={showEquator}
               showLat30={showLat30}

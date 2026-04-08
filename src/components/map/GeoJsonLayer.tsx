@@ -113,7 +113,7 @@ const GeoJsonLayer: React.FC<Props> = ({
           if (cur.has(labelText)) cur.delete(labelText)
           else cur.add(labelText)
           const arr = Array.from(cur)
-          try { localStorage.setItem(storageKey, JSON.stringify(arr)) } catch (e) {}
+          // Parent component is responsible for persisting selection to localStorage.
           onSelectionChange && onSelectionChange(arr)
         })
       }
