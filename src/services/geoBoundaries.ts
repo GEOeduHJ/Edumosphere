@@ -208,12 +208,19 @@ export async function fetchAdminBoundaries(iso3: string, level: string = 'ADM1')
                 return false
               }
             })
-            const filtered: FeatureCollection = { type: 'FeatureCollection', features: feats }
-            // cache per-country result so subsequent calls are fast
-            adminCache.set(key, filtered)
+            // If we found features for the requested ISO, return the filtered collection.
+            // If none were found, continue so we can try server-side proxy or metadata fallbacks.
+            if (feats && feats.length > 0) {
+              const filtered: FeatureCollection = { type: 'FeatureCollection', features: feats }
+              // cache per-country result so subsequent calls are fast
+              adminCache.set(key, filtered)
+              // eslint-disable-next-line no-console
+              console.log('fetchAdminBoundaries: using local global ADM1 file (filtered)', p, 'features:', feats.length)
+              return filtered
+            }
+            // otherwise fallthrough to try server-side proxy / API
             // eslint-disable-next-line no-console
-            console.log('fetchAdminBoundaries: using local global ADM1 file (filtered)', p, 'features:', feats.length)
-            return filtered
+            console.log('fetchAdminBoundaries: local ADM1 found but no features for', code, 'in', p)
           }
         } catch (e) {
           continue
