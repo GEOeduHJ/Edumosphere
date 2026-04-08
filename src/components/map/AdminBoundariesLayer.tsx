@@ -70,20 +70,46 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
             if (maybe) inferredCountryName = String(maybe)
           } catch (e) {}
         }
-        const custom = (stylesMap && inferredCountryName && stylesMap[inferredCountryName]) || {}
-        // debug: show which custom style (if any) was found for this ISO
-        try {
-          // eslint-disable-next-line no-console
-          console.debug('AdminBoundariesLayer style lookup', { iso3, inferredCountryName, custom })
-        } catch (e) {}
+        // attempt to resolve a style from stylesMap using several fallbacks
+        const findStyleFor = (map: Record<string, any> | undefined, name?: string, iso?: string) => {
+          if (!map) return undefined
+          if (name && map[name]) return map[name]
+          if (name) {
+            const n = name.trim().toLowerCase()
+            for (const k of Object.keys(map)) {
+              if (!k) continue
+              if (k.trim().toLowerCase() === n) return map[k]
+            }
+            for (const k of Object.keys(map)) {
+              if (!k) continue
+              const kk = k.trim().toLowerCase()
+              if (kk.includes(n) || n.includes(kk)) return map[k]
+            }
+          }
+          if (iso) {
+            const iu = iso.toUpperCase()
+            if (map[iu]) return map[iu]
+            for (const k of Object.keys(map)) {
+              if (!k) continue
+              if (k.trim().toUpperCase() === iu) return map[k]
+            }
+          }
+          return undefined
+        }
+
+        const custom = findStyleFor(stylesMap, inferredCountryName, iso3) || {}
+        try { console.debug && console.debug('AdminBoundariesLayer style lookup', { iso3, inferredCountryName, custom }) } catch (e) {}
 
         const computeStyle = (feature: any) => {
-          const base = { color: s.color || strokeColor, weight: s.weight || 1.0 }
+          const base: any = { color: s.color || strokeColor, weight: s.weight || 1.0 }
           const out: any = { ...base }
           if (custom && custom.fillColor) out.fillColor = custom.fillColor
-          // respect explicit fillOpacity only; otherwise keep 0 so boundaries-only remains default
-          out.fillOpacity = typeof custom.fillOpacity === 'number' ? custom.fillOpacity : 0
-          // keep polygon with no fill by default
+          // coerce fillOpacity from string/number if present, otherwise default 0 (no fill)
+          let fo: number | undefined = undefined
+          if (typeof custom.fillOpacity === 'number') fo = custom.fillOpacity
+          else if (typeof custom.fillOpacity === 'string' && custom.fillOpacity.trim() !== '' && !isNaN(Number(custom.fillOpacity))) fo = Number(custom.fillOpacity)
+          out.fillOpacity = typeof fo === 'number' ? fo : 0
+          out.fill = out.fillOpacity > 0
           return out
         }
 
