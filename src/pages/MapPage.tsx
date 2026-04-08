@@ -308,6 +308,16 @@ const MapPage: React.FC = () => {
     } catch (e) { return [] }
   }, [selectedCountries])
 
+  const isoToNameMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const sc of selectedCountries || []) {
+      try {
+        if (sc && sc.iso3) m[(sc.iso3 || '').toUpperCase()] = sc.name
+      } catch (e) {}
+    }
+    return m
+  }, [selectedCountries])
+
   const [editStep, setEditStep] = useState<number>(1)
   const [tempEdits, setTempEdits] = useState<Record<string, any>>({})
 
@@ -659,7 +669,7 @@ const MapPage: React.FC = () => {
               exporting={exporting}
               onLoad={geo => (geoLayerRef.current = geo)}
             />
-            {showAdminBoundaries && <AdminBoundariesLayer iso3List={selectedIso3} enabled={showAdminBoundaries} level={adminLevel} interactive={adminInteractive} />}
+            {showAdminBoundaries && <AdminBoundariesLayer iso3List={selectedIso3} enabled={showAdminBoundaries} level={adminLevel} interactive={adminInteractive} stylesMap={countryStyles} isoToNameMap={isoToNameMap} />}
             <Graticule
               showEquator={showEquator}
               showLat30={showLat30}

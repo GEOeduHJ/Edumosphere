@@ -9,6 +9,8 @@ type Props = {
   level?: string
   strokeColor?: string
   interactive?: boolean
+  stylesMap?: Record<string, any>
+  isoToNameMap?: Record<string, string>
 }
 
 const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM1', strokeColor = '#333', interactive = false }) => {
@@ -58,9 +60,31 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
           return
         }
 
+        // derive country-level custom style (stylesMap keyed by country name)
+        const countryName = (props && (props as any).isoToNameMap && (props as any).isoToNameMap[iso3]) || undefined
+        // fallback: try to read name from geo features if iso->name map not provided
+        let inferredCountryName: string | undefined = countryName
+        if (!inferredCountryName) {
+          try {
+            const maybe = (gj.features && gj.features[0] && gj.features[0].properties && (gj.features[0].properties['shapeName'] || gj.features[0].properties['COUNTRY'] || gj.features[0].properties['country']))
+            if (maybe) inferredCountryName = String(maybe)
+          } catch (e) {}
+        }
+        const custom = (props && (props as any).stylesMap && inferredCountryName && (props as any).stylesMap[inferredCountryName]) || {}
+
+        const computeStyle = (feature: any) => {
+          const base = { color: s.color || strokeColor, weight: s.weight || 1.0 }
+          const out: any = { ...base }
+          if (custom && custom.fillColor) out.fillColor = custom.fillColor
+          // respect explicit fillOpacity only; otherwise keep 0 so boundaries-only remains default
+          out.fillOpacity = typeof custom.fillOpacity === 'number' ? custom.fillOpacity : 0
+          // keep polygon with no fill by default
+          return out
+        }
+
         const geo = L.geoJSON(gj as any, {
           pane: paneName,
-          style: { color: s.color || strokeColor, weight: s.weight || 1.0, fillOpacity: 0 },
+          style: computeStyle,
           interactive: interactive,
           onEachFeature: interactive
             ? (feature: any, layer: L.Layer) => {
