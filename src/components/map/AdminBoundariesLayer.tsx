@@ -47,7 +47,34 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
     }
     const s = levelStyles[level] || { weight: 1.0, color: strokeColor }
 
-    const addFor = async (iso3: string) => {
+      // helper to resolve style entry from stylesMap with fallbacks
+      const findStyleFor = (map: Record<string, any> | undefined, name?: string, iso?: string) => {
+        if (!map) return undefined
+        if (name && map[name]) return map[name]
+        if (name) {
+          const n = name.trim().toLowerCase()
+          for (const k of Object.keys(map)) {
+            if (!k) continue
+            if (k.trim().toLowerCase() === n) return map[k]
+          }
+          for (const k of Object.keys(map)) {
+            if (!k) continue
+            const kk = k.trim().toLowerCase()
+            if (kk.includes(n) || n.includes(kk)) return map[k]
+          }
+        }
+        if (iso) {
+          const iu = iso.toUpperCase()
+          if (map[iu]) return map[iu]
+          for (const k of Object.keys(map)) {
+            if (!k) continue
+            if (k.trim().toUpperCase() === iu) return map[k]
+          }
+        }
+        return undefined
+      }
+
+      const addFor = async (iso3: string) => {
       if (!iso3) return
       const key = `${iso3}|${level}`
       if (layersRef.current.has(key)) return
@@ -146,6 +173,46 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
         console.error('AdminBoundariesLayer fetch failed for', iso3, level, e)
       }
     }
+
+    // when stylesMap or iso->name mapping changes, update existing layers' styles
+    try {
+      // small debounce - schedule update on next tick
+      setTimeout(() => {
+        try {
+          for (const [k, geo] of layersRef.current.entries()) {
+            try {
+              const parts = String(k).split('|')
+              const iso = parts[0]
+              const lvl = parts[1]
+              if (lvl !== level) continue
+              // determine name used for style lookup
+              let nameForIso = isoToNameMap && isoToNameMap[iso]
+              if (!nameForIso) {
+                try {
+                  const gj = (geo as any).toGeoJSON ? (geo as any).toGeoJSON() : undefined
+                  const maybe = gj && gj.features && gj.features[0] && gj.features[0].properties && (gj.features[0].properties['shapeName'] || gj.features[0].properties['COUNTRY'] || gj.features[0].properties['country'])
+                  if (maybe) nameForIso = String(maybe)
+                } catch (e) {}
+              }
+              const customStyle = findStyleFor(stylesMap, nameForIso, iso) || {}
+              // coerce fillOpacity
+              let fo: number | undefined = undefined
+              if (typeof customStyle.fillOpacity === 'number') fo = customStyle.fillOpacity
+              else if (typeof customStyle.fillOpacity === 'string' && customStyle.fillOpacity.trim() !== '' && !isNaN(Number(customStyle.fillOpacity))) fo = Number(customStyle.fillOpacity)
+              const applyStyle = (f: any) => {
+                const base: any = { color: s.color || strokeColor, weight: s.weight || 1.0 }
+                const out: any = { ...base }
+                if (customStyle && customStyle.fillColor) out.fillColor = customStyle.fillColor
+                out.fillOpacity = typeof fo === 'number' ? fo : 0
+                out.fill = out.fillOpacity > 0
+                return out
+              }
+              try { (geo as any).setStyle && (geo as any).setStyle(applyStyle) } catch (e) {}
+            } catch (e) {}
+          }
+        } catch (e) {}
+      }, 0)
+    } catch (e) {}
 
     if (!enabled) {
       for (const layer of layersRef.current.values()) try { map.removeLayer(layer) } catch (e) {}
