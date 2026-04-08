@@ -363,6 +363,11 @@ label {
   flex-wrap: wrap;
 }
 
+/* Leaflet background: prefer white canvas instead of default gray */
+.leaflet-container {
+  background: #ffffff !important;
+}
+
 .flex-col {
   display: flex;
   flex-direction: column;

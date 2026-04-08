@@ -11,9 +11,8 @@
   "dependencies": {
     "html2canvas": "^1.4.1",
     "leaflet": "^1.9.4",
+    "leaflet-easyprint": "^2.1.9",
     "leaflet-image": "^0.4.0",
-    "leaflet.pm": "^2.2.0",
-    "papaparse": "^5.4.1",
     "plotly.js-dist-min": "^2.24.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

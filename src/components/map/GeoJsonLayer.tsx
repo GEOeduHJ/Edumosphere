@@ -122,8 +122,8 @@ const GeoJsonLayer: React.FC<Props> = ({
       if (renderer) opts.renderer = renderer
 
       const geo = L.geoJSON(fc as any, opts)
-    geo.addTo(map)
-    cache.set(label, geo)
+      geo.addTo(map)
+      cache.set(label, geo)
 
     // create / update text markers for this label
     try {
@@ -135,7 +135,7 @@ const GeoJsonLayer: React.FC<Props> = ({
       const markers: L.Marker[] = []
       const custom = (stylesMapRef.current && stylesMapRef.current[label]) || {}
       const labelText = custom.label || ''
-      if (labelText) {
+              if (labelText) {
         geo.eachLayer((ly: any) => {
           try {
             if (ly && ly.getBounds) {

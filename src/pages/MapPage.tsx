@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import { MapContainer, Marker, Popup } from 'react-leaflet'
 import L, { LatLngBounds } from 'leaflet'
 import { useAppState } from '../hooks/useAppState'
 import EmptyState from '../components/common/EmptyState'
@@ -109,6 +109,28 @@ const MapPage: React.FC = () => {
         setExporting(false)
         return
       }
+
+      // try leaflet-easyprint first (dynamic import) — if available, use it and return
+      try {
+        const ep: any = await import('leaflet-easyprint')
+        const EasyPrint = (L as any).easyPrint || (ep && (ep.default || ep))
+        if (typeof EasyPrint === 'function') {
+          try {
+            const printer = (L as any).easyPrint({ exportOnly: true, hideControlContainer: true, filename: 'map' })
+            try { printer.addTo(map) } catch (_) {}
+            try {
+              if (typeof printer.printMap === 'function') {
+                // print current view
+                ;(printer as any).printMap('CurrentSize', 'map')
+                setExporting(false)
+                try { printer.remove && printer.remove() } catch (_) {}
+                return
+              }
+            } catch (_) {}
+            try { printer.remove && printer.remove() } catch (_) {}
+          } catch (_) {}
+        }
+      } catch (_) {}
 
       // save current view and set a fixed world view for export
       try {
@@ -274,17 +296,9 @@ const MapPage: React.FC = () => {
   }
 
   const nextStep = () => {
+    // New step flow: 1 = 색상 선택, 2 = 글자 입력, 3 = 이미지 다운로드
     if (editStep === 1) {
-      if (!pendingSelected || pendingSelected.length === 0) {
-        alert('적용할 국가를 먼저 선택하세요.')
-        return
-      }
-      setSelectedCountries(pendingSelected)
-      initTempEditsFor(pendingSelected)
-      setEditStep(2)
-      return
-    }
-    if (editStep === 2) {
+      // apply color/opacity edits
       setCountryStyles(prev => {
         const next = { ...prev }
         for (const name of selectedCountries) {
@@ -295,10 +309,11 @@ const MapPage: React.FC = () => {
         try { localStorage.setItem('country_styles', JSON.stringify(next)) } catch (e) {}
         return next
       })
-      setEditStep(3)
+      setEditStep(2)
       return
     }
-    if (editStep === 3) {
+    if (editStep === 2) {
+      // apply label/text edits
       setCountryStyles(prev => {
         const next = { ...prev }
         for (const name of selectedCountries) {
@@ -309,7 +324,7 @@ const MapPage: React.FC = () => {
         try { localStorage.setItem('country_styles', JSON.stringify(next)) } catch (e) {}
         return next
       })
-      setEditStep(4)
+      setEditStep(3)
       return
     }
   }
@@ -439,12 +454,25 @@ const MapPage: React.FC = () => {
         </div>
 
         <div className={styles.selectorContainer}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input className={styles.countrySearch} placeholder="국가 검색..." value={search} onChange={e => setSearch(e.target.value)} />
             <button onClick={() => setPendingSelected(allCountries)}>전체선택</button>
             <button onClick={() => setPendingSelected([])}>전체해제</button>
             <button onClick={() => setSelectedCountries(pendingSelected)}>적용</button>
-            <button onClick={() => { setSelectedCountries([]); setPendingSelected([]); localStorage.removeItem('selected_countries') }}>초기화</button>
+            <button onClick={() => {
+              // full reset: clear selections, pending buffer, applied styles, temp edits and persisted storage
+              setSelectedCountries([])
+              setPendingSelected([])
+              setCountryStyles({})
+              setTempEdits({})
+              setEditorColor('#ffcc33')
+              setEditorOpacity(0.9)
+              setEditorLabel('')
+              setEditorLabelColor('#000000')
+              setEditorFontSize(16)
+              try { localStorage.removeItem('selected_countries') } catch (_) {}
+              try { localStorage.removeItem('country_styles') } catch (_) {}
+            }}>초기화</button>
           </div>
 
           <div className={styles.countryList}>
@@ -463,28 +491,15 @@ const MapPage: React.FC = () => {
 
         <div style={{ marginLeft: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className={styles.stepper}>
-            <div className={`${styles.stepItem} ${editStep === 1 ? styles.activeStep : ''}`}>1. 국가 선택</div>
-            <div className={`${styles.stepItem} ${editStep === 2 ? styles.activeStep : ''}`}>2. 색상 선택</div>
-            <div className={`${styles.stepItem} ${editStep === 3 ? styles.activeStep : ''}`}>3. 글자 입력</div>
-            <div className={`${styles.stepItem} ${editStep === 4 ? styles.activeStep : ''}`}>4. 이미지 다운로드</div>
+            <div className={`${styles.stepItem} ${editStep === 1 ? styles.activeStep : ''}`}>1. 색상 선택</div>
+            <div className={`${styles.stepItem} ${editStep === 2 ? styles.activeStep : ''}`}>2. 글자 입력</div>
+            <div className={`${styles.stepItem} ${editStep === 3 ? styles.activeStep : ''}`}>3. 이미지 다운로드</div>
           </div>
 
           <div className={styles.stepPanel}>
             {editStep === 1 && (
               <div>
-                <div>1단계: 왼쪽 목록에서 국가를 선택한 뒤 '적용'을 누르거나 아래 '다음'을 눌러 선택을 확정하세요.</div>
-                <div style={{ marginTop: 8 }}>
-                  선택된 국가 수: <strong>{pendingSelected.length}</strong>
-                  <div style={{ marginTop: 6 }}>
-                    <button onClick={() => { setSelectedCountries(pendingSelected); initTempEditsFor(pendingSelected); }}>선택 적용</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {editStep === 2 && (
-              <div>
-                <div style={{ marginBottom: 8 }}>2단계: 선택한 국가별 색상과 투명도를 설정하세요. 상단의 '전체 색상 적용'으로 한 번에 바꿀 수 있습니다.</div>
+                <div style={{ marginBottom: 8 }}>1단계: 선택한 국가별 색상과 투명도를 설정하세요. 상단의 '전체 색상 적용'으로 한 번에 바꿀 수 있습니다.</div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     전체 색상 적용
@@ -511,9 +526,9 @@ const MapPage: React.FC = () => {
               </div>
             )}
 
-            {editStep === 3 && (
+            {editStep === 2 && (
               <div>
-                <div style={{ marginBottom: 8 }}>3단계: 선택한 국가 내부에 들어갈 글자를 입력하세요.</div>
+                <div style={{ marginBottom: 8 }}>2단계: 선택한 국가 내부에 들어갈 글자를 입력하세요.</div>
                 <div className={styles.editorList}>
                   {selectedCountries.map(name => (
                     <div key={name} className={styles.editorRow}>
@@ -527,9 +542,9 @@ const MapPage: React.FC = () => {
               </div>
             )}
 
-            {editStep === 4 && (
+            {editStep === 3 && (
               <div>
-                <div style={{ marginBottom: 8 }}>4단계: 편집 결과를 이미지로 다운로드하세요.</div>
+                <div style={{ marginBottom: 8 }}>3단계: 편집 결과를 이미지로 다운로드하세요.</div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={captureMapImage}>지도 이미지 다운로드</button>
                 </div>
@@ -539,7 +554,7 @@ const MapPage: React.FC = () => {
 
           <div style={{ display: 'flex', gap: 8 }}>
             {editStep > 1 && <button onClick={prevStep}>이전</button>}
-            {editStep < 4 && <button onClick={nextStep}>다음</button>}
+            {editStep < 3 && <button onClick={nextStep}>다음</button>}
           </div>
         </div>
       </div>
