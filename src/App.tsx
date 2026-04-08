@@ -6,19 +6,22 @@ import DataViewPage from './pages/DataViewPage'
 import ComparePage from './pages/ComparePage'
 import MapPage from './pages/MapPage'
 import { AppStateProvider } from './hooks/useAppState'
+import ErrorBoundary from './components/common/ErrorBoundary'
 
 const App: React.FC = () => {
   return (
     <AppStateProvider>
-      <AppShell>
-        <Routes>
-          <Route path="/" element={<Navigate to="/setup" replace />} />
-          <Route path="/setup" element={<DataSetupPage />} />
-          <Route path="/view" element={<DataViewPage />} />
-          <Route path="/compare" element={<ComparePage />} />
-          <Route path="/map" element={<MapPage />} />
-        </Routes>
-      </AppShell>
+      <ErrorBoundary>
+        <AppShell>
+          <Routes>
+            <Route path="/" element={<Navigate to="/setup" replace />} />
+            <Route path="/setup" element={<DataSetupPage />} />
+            <Route path="/view" element={<DataViewPage />} />
+            <Route path="/compare" element={<ComparePage />} />
+            <Route path="/map" element={<MapPage />} />
+          </Routes>
+        </AppShell>
+      </ErrorBoundary>
     </AppStateProvider>
   )
 }

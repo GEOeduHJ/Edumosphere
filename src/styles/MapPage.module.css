@@ -24,6 +24,87 @@
   margin: 0;
 }
 
+.selectorContainer {
+  margin-top: 12px;
+}
+
+.countrySearch {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  width: 260px;
+}
+
+.countryList {
+  margin-top: 8px;
+  max-height: 160px;
+  overflow: auto;
+  border: 1px solid #f0f0f0;
+  padding: 8px;
+  border-radius: 6px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.countryItem {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+
+.country-label {
+  pointer-events: none;
+  background: transparent;
+  display: inline-block;
+  text-align: center;
+}
+
+.country-label-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.stepper {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.stepItem {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #f3f4f6;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.activeStep {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: #fff;
+}
+
+.stepPanel {
+  padding: 8px;
+  border: 1px solid #efefef;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.editorList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editorRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .mapWrapper {
   flex: 1;
   background: white;
@@ -65,6 +146,24 @@
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
+}
+
+.custom-marker-icon {
+  background: transparent !important;
+}
+
+.marker-badge {
+  background: var(--color-primary);
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+  border: 2px solid #fff;
 }
 
 /* Responsive */
