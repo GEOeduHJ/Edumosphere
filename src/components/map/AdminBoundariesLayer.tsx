@@ -71,6 +71,11 @@ const AdminBoundariesLayer: React.FC<Props> = ({ iso3List, enabled, level = 'ADM
           } catch (e) {}
         }
         const custom = (stylesMap && inferredCountryName && stylesMap[inferredCountryName]) || {}
+        // debug: show which custom style (if any) was found for this ISO
+        try {
+          // eslint-disable-next-line no-console
+          console.debug('AdminBoundariesLayer style lookup', { iso3, inferredCountryName, custom })
+        } catch (e) {}
 
         const computeStyle = (feature: any) => {
           const base = { color: s.color || strokeColor, weight: s.weight || 1.0 }
