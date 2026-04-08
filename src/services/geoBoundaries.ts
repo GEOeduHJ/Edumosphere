@@ -4,6 +4,7 @@ import { getLabelText } from '../utils/label'
 let worldCache: FeatureCollection | null = null
 let nameToIsoCache: Record<string, string> | null = null
 let isoToFeaturesCache: Map<string, Feature[]> | null = null
+let globalAdm1Cache: FeatureCollection | null = null
 
 function tryIsoFromProps(p: any): string | null {
   if (!p) return null
@@ -167,6 +168,54 @@ export async function fetchAdminBoundaries(iso3: string, level: string = 'ADM1')
   const code = iso3.toUpperCase()
   const key = `${code}|${level}`
   if (adminCache.has(key)) return adminCache.get(key) || null
+  // First: if requesting ADM1, prefer a single global local file if present (official global ADM1 download ~350MB).
+  // This avoids repeated remote fetches and CORS/redirect issues for large combined files.
+  try {
+    if ((level || '').toUpperCase() === 'ADM1') {
+      const globalCandidates = [
+        '/data/geoBoundaries/ADM1.geojson',
+        '/data/geoBoundaries/geoBoundaries-ADM1.geojson',
+        '/data/geoBoundaries/ADM1-global.geojson',
+        '/data/geoBoundaries/gbOpen_ADM1.geojson',
+        '/data/geoBoundaries/geoBoundaries-ADM1.json',
+        '/data/geoBoundaries/ADM1.json'
+      ]
+      for (const p of globalCandidates) {
+        try {
+          // reuse in-memory global cache if already loaded
+          let j: FeatureCollection | null = globalAdm1Cache
+          if (!j) {
+            const r = await fetch(p)
+            if (!r.ok) continue
+            const parsed = await r.json()
+            if (!parsed || !Array.isArray(parsed.features)) continue
+            j = parsed as FeatureCollection
+            globalAdm1Cache = j
+          }
+          if (j && Array.isArray(j.features)) {
+            // filter the global collection down to the requested country ISO
+            const feats = (j.features as Feature[]).filter(f => {
+              try {
+                const iso = tryIsoFromProps((f && (f as any).properties) || {})
+                return iso === code
+              } catch (e) {
+                return false
+              }
+            })
+            const filtered: FeatureCollection = { type: 'FeatureCollection', features: feats }
+            // cache per-country result so subsequent calls are fast
+            adminCache.set(key, filtered)
+            // eslint-disable-next-line no-console
+            console.log('fetchAdminBoundaries: using local global ADM1 file (filtered)', p, 'features:', feats.length)
+            return filtered
+          }
+        } catch (e) {
+          continue
+        }
+      }
+    }
+  } catch (e) {}
+
   // First attempt: server-side proxy endpoint (recommended)
   try {
     const apiUrl = `/api/geoboundaries/${code}/${level}`

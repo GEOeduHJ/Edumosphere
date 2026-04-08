@@ -648,7 +648,7 @@ const MapPage: React.FC = () => {
             <MapInitializer bounds={bounds} />
             <BasemapBoundaries />
             <GeoJsonLayer
-              selectedIds={(selectedCountries || []).map(s => s.name)}
+              selectedIds={showAdminBoundaries ? [] : (selectedCountries || []).map(s => s.name)}
               onSelectionChange={(names: string[]) => {
                 const scs: SelectedCountry[] = (names || []).map(n => ({ name: n, iso3: (nameToIso3 && nameToIso3[n]) || '', iso2: undefined }))
                 setSelectedCountries(scs)
