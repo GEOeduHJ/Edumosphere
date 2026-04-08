@@ -9,6 +9,12 @@ let globalAdm1Cache: FeatureCollection | null = null
 function tryIsoFromProps(p: any): string | null {
   if (!p) return null
   const candidates = [
+    // common geoBoundaries properties
+    p['shapeGroup'],
+    p['shape_group'],
+    p['SHAPE_GRP'],
+    p['shapeISO'],
+    p['shape_iso'],
     p['ISO_A3'],
     p['ISO3'],
     p['ISO3166-1-Alpha-3'],
