@@ -4,7 +4,26 @@ import { getLabelText } from '../utils/label'
 let worldCache: FeatureCollection | null = null
 let nameToIsoCache: Record<string, string> | null = null
 let isoToFeaturesCache: Map<string, Feature[]> | null = null
-let globalAdm1Cache: FeatureCollection | null = null
+// cache global ADM files per level (e.g., ADM0, ADM1)
+const globalAdmCache: Map<string, FeatureCollection | null> = new Map()
+
+// normalize names for better matching (remove diacritics, punctuation, parentheticals)
+function normalizeName(input: any): string {
+  if (!input && input !== 0) return ''
+  try {
+    let s = String(input).trim()
+    // remove parenthetical content: "France (Metropolitan)" -> "France"
+    s = s.replace(/\s*\(.*?\)\s*/g, ' ')
+    // Unicode normalize and strip diacritics
+    s = s.normalize && s.normalize('NFD') ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : s
+    // remove punctuation except word chars and spaces
+    s = s.replace(/[^\w\s-]/g, ' ')
+    s = s.replace(/\s+/g, ' ').trim()
+    return s.toLowerCase()
+  } catch (e) {
+    return String(input).toLowerCase()
+  }
+}
 
 function tryIsoFromProps(p: any): string | null {
   if (!p) return null
@@ -26,7 +45,16 @@ function tryIsoFromProps(p: any): string | null {
     p['cca3'],
     p['ISO3166_A3']
   ]
-  for (const c of candidates) if (c) return String(c).toUpperCase()
+  for (const c of candidates) {
+    if (!c) continue
+    try {
+      const s = String(c).toUpperCase().trim()
+      // Accept only 3-letter alphabetic ISO3 codes (ignore '-99' and numeric junk)
+      if (/^[A-Z]{3}$/.test(s)) return s
+    } catch (e) {
+      continue
+    }
+  }
   return null
 }
 
@@ -45,7 +73,17 @@ export async function fetchWorldCountries(): Promise<FeatureCollection | null> {
       try {
         const name = getLabelText(f)
         const iso = tryIsoFromProps(f.properties)
-        if (name && iso && !nameMap[name]) nameMap[name] = iso
+        if (name) {
+          const norm = normalizeName(name)
+          if (iso) {
+            if (!nameMap[name]) nameMap[name] = iso
+            if (!nameMap[norm]) nameMap[norm] = iso
+          } else {
+            // if feature lacks ISO but name present, still record the original name -> null placeholder
+            if (!nameMap[name]) nameMap[name] = nameMap[name] || null as any
+            if (!nameMap[norm]) nameMap[norm] = nameMap[norm] || null as any
+          }
+        }
         if (iso) {
           const arr = isoMap.get(iso) || []
           arr.push(f)
@@ -176,16 +214,24 @@ export async function fetchAdminBoundaries(iso3: string, level: string = 'ADM1')
   if (adminCache.has(key)) {
     const cached = adminCache.get(key)
     if (cached) return cached
-    // If we previously cached a null (failed attempt), allow a retry for ADM1
-    // if a local global ADM1 file now exists. This handles the case where
-    // the large ADM1 composite was added after an earlier failed lookup.
-    if ((level || '').toUpperCase() === 'ADM1') {
-      const localCandidatesCheck = [
-        '/data/geoBoundaries/ADM1.geojson',
-        '/data/geoBoundaries/geoBoundaries-ADM1.geojson',
-        '/data/geoBoundaries/ADM1-global.geojson',
-        '/data/geoBoundaries/gbOpen_ADM1.geojson'
-      ]
+    // If we previously cached a null (failed attempt), allow a retry for
+    // ADM1/ADM0 if a local global ADM file now exists. This handles the
+    // case where a local composite was added after an earlier failure.
+    const lvlU = (level || '').toUpperCase()
+    if (lvlU === 'ADM1' || lvlU === 'ADM0') {
+      const localCandidatesCheck = lvlU === 'ADM1'
+        ? [
+            '/data/geoBoundaries/ADM1.geojson',
+            '/data/geoBoundaries/geoBoundaries-ADM1.geojson',
+            '/data/geoBoundaries/ADM1-global.geojson',
+            '/data/geoBoundaries/gbOpen_ADM1.geojson'
+          ]
+        : [
+            '/data/geoBoundaries/ADM0.geojson',
+            '/data/geoBoundaries/geoBoundaries-ADM0.geojson',
+            '/data/geoBoundaries/ADM0-global.geojson',
+            '/data/geoBoundaries/gbOpen_ADM0.geojson'
+          ]
       let found = false
       for (const p of localCandidatesCheck) {
         try {
@@ -203,50 +249,102 @@ export async function fetchAdminBoundaries(iso3: string, level: string = 'ADM1')
   // First: if requesting ADM1, prefer a single global local file if present (official global ADM1 download ~350MB).
   // This avoids repeated remote fetches and CORS/redirect issues for large combined files.
   try {
-    if ((level || '').toUpperCase() === 'ADM1') {
-      const globalCandidates = [
-        '/data/geoBoundaries/ADM1.geojson',
-        '/data/geoBoundaries/geoBoundaries-ADM1.geojson',
-        '/data/geoBoundaries/ADM1-global.geojson',
-        '/data/geoBoundaries/gbOpen_ADM1.geojson',
-        '/data/geoBoundaries/geoBoundaries-ADM1.json',
-        '/data/geoBoundaries/ADM1.json'
-      ]
+    const lvlU = (level || '').toUpperCase()
+    if (lvlU === 'ADM1' || lvlU === 'ADM0') {
+      const globalCandidates = lvlU === 'ADM1'
+        ? [
+            '/data/geoBoundaries/ADM1.geojson',
+            '/data/geoBoundaries/geoBoundaries-ADM1.geojson',
+            '/data/geoBoundaries/ADM1-global.geojson',
+            '/data/geoBoundaries/gbOpen_ADM1.geojson',
+            '/data/geoBoundaries/geoBoundaries-ADM1.json',
+            '/data/geoBoundaries/ADM1.json'
+          ]
+        : [
+            '/data/geoBoundaries/ADM0.geojson',
+            '/data/geoBoundaries/geoBoundaries-ADM0.geojson',
+            '/data/geoBoundaries/ADM0-global.geojson',
+            '/data/geoBoundaries/gbOpen_ADM0.geojson',
+            '/data/geoBoundaries/geoBoundaries-ADM0.json',
+            '/data/geoBoundaries/ADM0.json'
+          ]
+
       for (const p of globalCandidates) {
         try {
-          // reuse in-memory global cache if already loaded
-          let j: FeatureCollection | null = globalAdm1Cache
+          // reuse in-memory global cache if already loaded for this level
+          let j: FeatureCollection | null = globalAdmCache.get(lvlU) || null
           if (!j) {
             const r = await fetch(p)
             if (!r.ok) continue
             const parsed = await r.json()
             if (!parsed || !Array.isArray(parsed.features)) continue
             j = parsed as FeatureCollection
-            globalAdm1Cache = j
+            globalAdmCache.set(lvlU, j)
           }
           if (j && Array.isArray(j.features)) {
-            // filter the global collection down to the requested country ISO
-            const feats = (j.features as Feature[]).filter(f => {
+            // ensure we have country name->iso map to help match features that lack proper shapeGroup
+            if (!nameToIsoCache) await fetchWorldCountries()
+
+            const matchesFeature = (f: Feature) => {
               try {
-                const iso = tryIsoFromProps((f && (f as any).properties) || {})
-                return iso === code
-              } catch (e) {
-                return false
-              }
-            })
-            // If we found features for the requested ISO, return the filtered collection.
-            // If none were found, continue so we can try server-side proxy or metadata fallbacks.
+                const props = (f as any).properties || {}
+                const isoProp = tryIsoFromProps(props)
+                if (isoProp && String(isoProp).toUpperCase() === code) return true
+                // try label-based matching for features with missing/invalid shapeGroup (e.g. '-99')
+                try {
+                  const lbl = getLabelText(f)
+                  if (lbl && nameToIsoCache) {
+                    const lblNorm = normalizeName(lbl)
+                    const mapped = nameToIsoCache[lbl] || nameToIsoCache[lblNorm]
+                    if (mapped && String(mapped).toUpperCase() === code) return true
+                    // Fuzzy match against normalized keys in the cache
+                    for (const k of Object.keys(nameToIsoCache)) {
+                      if (!k) continue
+                      const kkNorm = normalizeName(k)
+                      if (!kkNorm) continue
+                      if (kkNorm === lblNorm || kkNorm.includes(lblNorm) || lblNorm.includes(kkNorm)) {
+                        const mapped2 = nameToIsoCache[k]
+                        if (mapped2 && String(mapped2).toUpperCase() === code) return true
+                      }
+                    }
+                  }
+                } catch (e) {}
+                // try alternate name-like properties
+                const altNames = [props['shapeName'], props['shape_name'], props['SHAPE_NAME'], props['shapeName_en'], props['NAME_EN'], props['NAME'], props['ADMIN'], props['COUNTRY'], props['country']]
+                for (const n of altNames) {
+                  if (!n) continue
+                  const nStr = String(n)
+                  const nNorm = normalizeName(nStr)
+                  if (nameToIsoCache) {
+                    const mapped3 = nameToIsoCache[nStr] || nameToIsoCache[nNorm]
+                    if (mapped3 && String(mapped3).toUpperCase() === code) return true
+                    for (const k of Object.keys(nameToIsoCache)) {
+                      if (!k) continue
+                      const kkNorm = normalizeName(k)
+                      if (!kkNorm) continue
+                      if (kkNorm === nNorm || kkNorm.includes(nNorm) || nNorm.includes(kkNorm)) {
+                        const mapped4 = nameToIsoCache[k]
+                        if (mapped4 && String(mapped4).toUpperCase() === code) return true
+                      }
+                    }
+                  }
+                }
+              } catch (e) {}
+              return false
+            }
+
+            const feats = (j.features as Feature[]).filter(matchesFeature)
             if (feats && feats.length > 0) {
               const filtered: FeatureCollection = { type: 'FeatureCollection', features: feats }
               // cache per-country result so subsequent calls are fast
               adminCache.set(key, filtered)
               // eslint-disable-next-line no-console
-              console.log('fetchAdminBoundaries: using local global ADM1 file (filtered)', p, 'features:', feats.length)
+              console.log('fetchAdminBoundaries: using local global', lvlU, 'file (filtered)', p, 'features:', feats.length)
               return filtered
             }
             // otherwise fallthrough to try server-side proxy / API
             // eslint-disable-next-line no-console
-            console.log('fetchAdminBoundaries: local ADM1 found but no features for', code, 'in', p)
+            console.log('fetchAdminBoundaries: local', lvlU, 'found but no features for', code, 'in', p)
           }
         } catch (e) {
           continue
@@ -255,33 +353,9 @@ export async function fetchAdminBoundaries(iso3: string, level: string = 'ADM1')
     }
   } catch (e) {}
 
-  // First attempt: server-side proxy endpoint (recommended)
-  try {
-    const apiUrl = `/api/geoboundaries/${code}/${level}`
-    const res = await fetch(apiUrl)
-    if (res.ok) {
-      const json = await res.json()
-      if (json && Array.isArray(json.features)) {
-        adminCache.set(key, json as FeatureCollection)
-        return json as FeatureCollection
-      }
-    }
-  } catch (e) {
-    // ignore and fallback to direct API usage
-  }
-
-  // Fallback: directly query geoBoundaries metadata and try to fetch the GeoJSON (dev proxy and fallbacks may apply)
-  try {
-    const meta = await fetchGeoBoundariesMetadata(code, level, 'gbOpen')
-    if (meta) {
-      const gj = await fetchGeoBoundariesGeoJSONFromMeta(meta)
-      adminCache.set(key, gj)
-      return gj
-    }
-  } catch (e) {
-    // swallow errors but cache null to avoid repeated failed attempts
-  }
-
+  // Do not attempt remote fetches in the client build. ADM0/ADM1 data
+  // must be provided locally under `public/data/geoBoundaries/`.
+  // If no local features were found for the requested ISO/level, return null.
   adminCache.set(key, null)
   return null
 }
