@@ -276,6 +276,43 @@ export async function fetchAdminBoundaries(iso3: string, level: string = 'ADM1')
     // case where a local composite was added after an earlier failure.
     const lvlU = (level || '').toUpperCase()
     if (lvlU === 'ADM1' || lvlU === 'ADM0') {
+        // First: check if a per-ISO split file exists (preferred over global composite)
+        try {
+          const splitPath = `/data/geoBoundaries/split/${lvlU}/${code}.geojson`
+          try {
+            const sp = await fetch(splitPath)
+            if (sp && sp.ok) {
+              const txtSp = await sp.text()
+              if (!(typeof txtSp === 'string' && txtSp.trim().startsWith('version https://git-lfs.github.com/spec/v1'))) {
+                try {
+                  const parsedSp = JSON.parse(txtSp)
+                  if (parsedSp && Array.isArray(parsedSp.features)) {
+                    adminCache.set(key, parsedSp as FeatureCollection)
+                    // eslint-disable-next-line no-console
+                    console.log('fetchAdminBoundaries: using local split file (retry) for', code, lvlU, splitPath)
+                    return parsedSp as FeatureCollection
+                  }
+                } catch (ee) {}
+              }
+            }
+          } catch (e) {}
+        } catch (e) {}
+      // Try the deployed server API first to avoid many HEAD/GET attempts
+      // against candidate static files. This reduces console noise and
+      // speeds up common cases where the serverless endpoint is available.
+      try {
+        const proxyRes = await fetch(`/api/geoboundaries/${code}/${lvlU}`)
+        if (proxyRes.ok) {
+          const pj = await proxyRes.json().catch(() => null)
+          if (pj && Array.isArray(pj.features)) {
+            adminCache.set(key, pj as FeatureCollection)
+            // eslint-disable-next-line no-console
+            console.log('fetchAdminBoundaries: using server API (cached-null retry) for', code, lvlU)
+            return pj as FeatureCollection
+          }
+        }
+      } catch (e) {}
+
       const localCandidatesCheck = lvlU === 'ADM1'
         ? [
             '/data/geoBoundaries/ADM1.geojson',
@@ -308,6 +345,41 @@ export async function fetchAdminBoundaries(iso3: string, level: string = 'ADM1')
   try {
     const lvlU = (level || '').toUpperCase()
     if (lvlU === 'ADM1' || lvlU === 'ADM0') {
+      // 1) Try a per-ISO split file under public first (fast, local fetch)
+      try {
+        const splitPath = `/data/geoBoundaries/split/${lvlU}/${code}.geojson`
+        const sp = await fetch(splitPath)
+        if (sp && sp.ok) {
+          const txtSp = await sp.text()
+          if (!(typeof txtSp === 'string' && txtSp.trim().startsWith('version https://git-lfs.github.com/spec/v1'))) {
+            try {
+              const parsedSp = JSON.parse(txtSp)
+              if (parsedSp && Array.isArray(parsedSp.features)) {
+                adminCache.set(key, parsedSp as FeatureCollection)
+                // eslint-disable-next-line no-console
+                console.log('fetchAdminBoundaries: using local split file', splitPath)
+                return parsedSp as FeatureCollection
+              }
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+
+      // 2) Try the deployed server API which can return per-ISO ADM.
+      try {
+        const proxyRes = await fetch(`/api/geoboundaries/${code}/${lvlU}`)
+        if (proxyRes.ok) {
+          const pj = await proxyRes.json().catch(() => null)
+          if (pj && Array.isArray(pj.features)) {
+            adminCache.set(key, pj as FeatureCollection)
+            // eslint-disable-next-line no-console
+            console.log('fetchAdminBoundaries: using server API for', code, lvlU)
+            return pj as FeatureCollection
+          }
+        }
+      } catch (e) {}
+
+      // 3) Fallback: try local global composite files and filter by ISO
       const globalCandidates = lvlU === 'ADM1'
         ? [
             '/data/geoBoundaries/ADM1.geojson',
@@ -342,7 +414,6 @@ export async function fetchAdminBoundaries(iso3: string, level: string = 'ADM1')
               // geoboundaries.org. We return the proxy result for this ISO
               // and level when available.
               try {
-                // Prefer the deployed serverless API at /api/geoboundaries/:iso/:level
                 const proxyRes = await fetch(`/api/geoboundaries/${code}/${lvlU}`)
                 if (proxyRes.ok) {
                   const pj = await proxyRes.json().catch(() => null)
