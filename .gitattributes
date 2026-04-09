@@ -1,6 +1,3 @@
 # Git LFS configuration for large geojson files
-# Track geojson files in geoBoundaries and all geojsons by extension
-public/data/geoBoundaries/*.geojson filter=lfs diff=lfs merge=lfs -text
-*.geojson filter=lfs diff=lfs merge=lfs -text
+# Only track the large ADM1 global composite with LFS; ensure ADM0 is committed normally
 public/data/geoBoundaries/ADM1.geojson filter=lfs diff=lfs merge=lfs -text
-public/data/geoBoundaries/ADM0.geojson filter=lfs diff=lfs merge=lfs -text
