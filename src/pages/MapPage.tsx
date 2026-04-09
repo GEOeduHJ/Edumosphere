@@ -157,7 +157,7 @@ const MapPage: React.FC = () => {
       const mod: any = await import('leaflet-image')
       const leafletImage = mod.default || mod
 
-      const featuresResp = await fetch('/data/world-countries.geojson')
+      const featuresResp = await fetch('/data/geoBoundaries/ADM0.geojson')
       const gj = await featuresResp.json()
       const features = Array.isArray(gj && gj.features) ? gj.features : []
 

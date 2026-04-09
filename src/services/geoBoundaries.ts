@@ -61,7 +61,7 @@ function tryIsoFromProps(p: any): string | null {
 export async function fetchWorldCountries(): Promise<FeatureCollection | null> {
   if (worldCache) return worldCache
   try {
-    const res = await fetch('/data/world-countries.geojson')
+    const res = await fetch('/data/geoBoundaries/ADM0.geojson')
     if (!res.ok) return null
     const json = await res.json()
     if (!json || !Array.isArray(json.features)) return null

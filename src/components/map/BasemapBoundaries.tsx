@@ -8,7 +8,7 @@ const BasemapBoundaries: React.FC = () => {
 
   useEffect(() => {
     let mounted = true
-    fetch('/data/world-countries.geojson')
+    fetch('/data/geoBoundaries/ADM0.geojson')
       .then(r => r.json())
       .then((gj: any) => {
         if (!mounted) return

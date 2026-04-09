@@ -26,7 +26,7 @@ type Props = {
 }
 
 const GeoJsonLayer: React.FC<Props> = ({
-  dataUrl = '/data/world-countries.geojson',
+  dataUrl = '/data/geoBoundaries/ADM0.geojson',
   selectedIds = [],
   onSelectionChange,
   storageKey = 'selected_countries'
