@@ -276,7 +276,31 @@ export async function fetchAdminBoundaries(iso3: string, level: string = 'ADM1')
           if (!j) {
             const r = await fetch(p)
             if (!r.ok) continue
-            const parsed = await r.json()
+            // read as text first so we can detect Git LFS pointer files which
+            // start with: "version https://git-lfs.github.com/spec/v1"
+            const txt = await r.text()
+            if (typeof txt === 'string' && txt.trim().startsWith('version https://git-lfs.github.com/spec/v1')) {
+              // Detected LFS pointer in deployed static asset. Fall back to
+              // serverless proxy which can fetch per-ISO ADM data from
+              // geoboundaries.org. We return the proxy result for this ISO
+              // and level when available.
+              try {
+                const proxyRes = await fetch(`/api/geoboundaries/proxy/${code}/${lvlU}`)
+                if (proxyRes.ok) {
+                  const pj = await proxyRes.json().catch(() => null)
+                  if (pj && Array.isArray(pj.features)) {
+                    adminCache.set(key, pj as FeatureCollection)
+                    // eslint-disable-next-line no-console
+                    console.log('fetchAdminBoundaries: detected LFS pointer; using server proxy for', code, lvlU)
+                    return pj as FeatureCollection
+                  }
+                }
+              } catch (e) {}
+              // proxy fallback failed; continue to next candidate
+              continue
+            }
+            let parsed: any = null
+            try { parsed = JSON.parse(txt) } catch (e) { parsed = null }
             if (!parsed || !Array.isArray(parsed.features)) continue
             j = parsed as FeatureCollection
             globalAdmCache.set(lvlU, j)
