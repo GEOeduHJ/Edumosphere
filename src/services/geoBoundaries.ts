@@ -342,13 +342,14 @@ export async function fetchAdminBoundaries(iso3: string, level: string = 'ADM1')
               // geoboundaries.org. We return the proxy result for this ISO
               // and level when available.
               try {
-                const proxyRes = await fetch(`/api/geoboundaries/proxy/${code}/${lvlU}`)
+                // Prefer the deployed serverless API at /api/geoboundaries/:iso/:level
+                const proxyRes = await fetch(`/api/geoboundaries/${code}/${lvlU}`)
                 if (proxyRes.ok) {
                   const pj = await proxyRes.json().catch(() => null)
                   if (pj && Array.isArray(pj.features)) {
                     adminCache.set(key, pj as FeatureCollection)
                     // eslint-disable-next-line no-console
-                    console.log('fetchAdminBoundaries: detected LFS pointer; using server proxy for', code, lvlU)
+                    console.log('fetchAdminBoundaries: detected LFS pointer; using server API for', code, lvlU)
                     return pj as FeatureCollection
                   }
                 }
