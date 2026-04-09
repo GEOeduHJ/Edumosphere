@@ -1,5 +1,5 @@
 // Catch-all serverless proxy for geoBoundaries geojson
-// Handles requests like: /api/geoboundaries/:iso/:level
+// Deploys at: /api/geoboundaries/proxy/:iso/:level
 // Returns GeoJSON with CORS header to avoid client-side CORS issues.
 
 const cache = global.__GEO_PROXY_CACHE ||= new Map()
@@ -28,8 +28,8 @@ export default async function handler(req, res) {
   try {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`)
     const parts = url.pathname.split('/').filter(Boolean)
-    // parts: ['api','geoboundaries', ...slug]
-    const slug = parts.slice(2)
+    // parts: ['api','geoboundaries','proxy', ...slug]
+    const slug = parts.slice(3)
     const iso = slug[0] || (url.searchParams.get('iso') || '')
     const level = slug[1] || (url.searchParams.get('level') || '')
 

@@ -10,7 +10,7 @@ const { URL } = require('url')
 const PORT = process.env.GEO_PROXY_PORT ? Number(process.env.GEO_PROXY_PORT) : 5174
 const app = express()
 
-app.get('/api/geoboundaries/:iso/:level', async (req, res) => {
+app.get('/api/geoboundaries/proxy/:iso/:level', async (req, res) => {
   try {
     const iso = String(req.params.iso).toUpperCase()
     const level = String(req.params.level).toUpperCase()
