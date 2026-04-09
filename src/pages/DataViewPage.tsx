@@ -21,6 +21,7 @@ const DataViewPage: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState(0)
   const [selectedCharts, setSelectedCharts] = useState<string[]>(['mixed'])
   const [metric, setMetric] = useState<'temperature' | 'precipitation'>('temperature')
+  const [viewMode, setViewMode] = useState<'all' | 'yearly' | 'monthly'>('all')
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
   
@@ -100,6 +101,12 @@ const DataViewPage: React.FC = () => {
       <div className={styles.header}>
         <h1>📊 데이터 및 그래프 열람</h1>
         <p>관측 지점별 기후 데이터를 시각화하고 분석합니다</p>
+        <div style={{ marginTop: 12 }}>
+          <label style={{ marginRight: 8, color: 'var(--color-text-secondary)' }}>보기 모드:</label>
+          <button onClick={() => setViewMode('all')} style={{ marginRight: 8, padding: '6px 10px', borderRadius: 6, border: viewMode === 'all' ? '1px solid var(--color-primary)' : '1px solid var(--color-border)', background: viewMode === 'all' ? 'linear-gradient(90deg,var(--color-primary),var(--color-primary-dark))' : 'transparent', color: viewMode === 'all' ? '#fff' : 'inherit' }}>전체</button>
+          <button onClick={() => setViewMode('yearly')} style={{ marginRight: 8, padding: '6px 10px', borderRadius: 6, border: viewMode === 'yearly' ? '1px solid var(--color-primary)' : '1px solid var(--color-border)', background: viewMode === 'yearly' ? 'linear-gradient(90deg,var(--color-primary),var(--color-primary-dark))' : 'transparent', color: viewMode === 'yearly' ? '#fff' : 'inherit' }}>연도별</button>
+          <button onClick={() => setViewMode('monthly')} style={{ padding: '6px 10px', borderRadius: 6, border: viewMode === 'monthly' ? '1px solid var(--color-primary)' : '1px solid var(--color-border)', background: viewMode === 'monthly' ? 'linear-gradient(90deg,var(--color-primary),var(--color-primary-dark))' : 'transparent', color: viewMode === 'monthly' ? '#fff' : 'inherit' }}>월별</button>
+        </div>
       </div>
 
       {/* Location Tabs */}
@@ -164,7 +171,7 @@ const DataViewPage: React.FC = () => {
 
       {/* Charts */}
       <div className={styles.chartsGrid}>
-        {selectedCharts.includes('mixed') && (
+        {selectedCharts.includes('mixed') && viewMode !== 'yearly' && (
           <div className={styles.chartCard}>
             <div style={{ marginBottom: 16 }}>
               <RangeSlider
@@ -180,7 +187,7 @@ const DataViewPage: React.FC = () => {
             <ClimateChart monthly={mixedMonthly} />
           </div>
         )}
-        {selectedCharts.includes('cumulative') && (
+        {selectedCharts.includes('cumulative') && viewMode !== 'yearly' && (
           <div className={styles.chartCard}>
             <div style={{ marginBottom: 16 }}>
               <RangeSlider
@@ -196,7 +203,7 @@ const DataViewPage: React.FC = () => {
             <CumulativePrecipChart monthly={cumulativeMonthly} />
           </div>
         )}
-        {selectedCharts.includes('monthly-anomaly') && (
+        {selectedCharts.includes('monthly-anomaly') && viewMode !== 'yearly' && (
           <div className={styles.chartCard}>
             <div style={{ marginBottom: 16 }}>
               <RangeSlider
@@ -212,7 +219,7 @@ const DataViewPage: React.FC = () => {
             <MonthlyAnomalyChart monthly={anomalyMonthly} metric={metric} />
           </div>
         )}
-        {selectedCharts.includes('annual-anomaly') && (
+        {selectedCharts.includes('annual-anomaly') && viewMode !== 'monthly' && (
           <div className={styles.chartCard}>
             <div style={{ marginBottom: 16 }}>
               <RangeSlider
@@ -228,7 +235,7 @@ const DataViewPage: React.FC = () => {
             <AnnualAnomalyChart yearly={yearly.filter(y => y.year >= anomalyStart && y.year <= anomalyEnd)} metric={metric} baselineStart={1991} baselineEnd={2020} />
           </div>
         )}
-        {selectedCharts.includes('annual') && (
+        {selectedCharts.includes('annual') && viewMode !== 'monthly' && (
           <div className={styles.chartCard}>
             <div style={{ marginBottom: 16 }}>
               <RangeSlider
@@ -244,7 +251,7 @@ const DataViewPage: React.FC = () => {
             <CompareChart series={[{ label: active.name, yearly: annualYearly }]} metric={metric} />
           </div>
         )}
-        {selectedCharts.includes('radar') && yearly.length > 0 && (
+        {selectedCharts.includes('radar') && yearly.length > 0 && viewMode !== 'yearly' && (
           <div className={styles.chartCard}>
             <div style={{ marginBottom: 12 }}>
               <label style={{ marginBottom: 6, display: 'inline-block' }}>
@@ -271,160 +278,158 @@ const DataViewPage: React.FC = () => {
       </div>
 
       {/* Monthly Detail */}
-      <div className={styles.detailCard}>
-        <h2 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: 600 }}>📅 월별 상세 조회</h2>
-        <div className={styles.detailHeader}>
-          <div className={styles.selectGroup}>
-            <label htmlFor="yearSelect">
-              연도
-            </label>
-            <select
-              id="yearSelect"
-              value={selectedYear ?? ''}
-              onChange={e => {
-                setSelectedYear(e.target.value ? Number(e.target.value) : null)
-                setSelectedMonth(null)
-              }}
-            >
-              <option value="">선택...</option>
-              {[...new Set(monthly.map(m => m.year))].sort((a, b) => b - a).map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </div>
-          {selectedYear && (
+      {viewMode !== 'yearly' && (
+        <div className={styles.detailCard}>
+          <h2 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: 600 }}>📅 월별 상세 조회</h2>
+          <div className={styles.detailHeader}>
             <div className={styles.selectGroup}>
-              <label htmlFor="monthSelect">
-                월
-              </label>
+              <label htmlFor="yearSelect">연도</label>
               <select
-                id="monthSelect"
-                value={selectedMonth ?? ''}
-                onChange={e => setSelectedMonth(e.target.value ? Number(e.target.value) : null)}
+                id="yearSelect"
+                value={selectedYear ?? ''}
+                onChange={e => {
+                  setSelectedYear(e.target.value ? Number(e.target.value) : null)
+                  setSelectedMonth(null)
+                }}
               >
                 <option value="">선택...</option>
-                {monthly.filter(m => m.year === selectedYear).sort((a, b) => a.month - b.month).map(m => (
-                  <option key={m.month} value={m.month}>{m.month}월</option>
+                {[...new Set(monthly.map(m => m.year))].sort((a, b) => b - a).map(y => (
+                  <option key={y} value={y}>{y}</option>
                 ))}
               </select>
             </div>
-          )}
-        </div>
+            {selectedYear && (
+              <div className={styles.selectGroup}>
+                <label htmlFor="monthSelect">월</label>
+                <select
+                  id="monthSelect"
+                  value={selectedMonth ?? ''}
+                  onChange={e => setSelectedMonth(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">선택...</option>
+                  {monthly.filter(m => m.year === selectedYear).sort((a, b) => a.month - b.month).map(m => (
+                    <option key={m.month} value={m.month}>{m.month}월</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
 
-        {selectedYear && selectedMonth && (() => {
-          const selected = monthly.find(m => m.year === selectedYear && m.month === selectedMonth)
-          const dailyForMonth = daily.filter(d => {
-            const [year, month] = d.date.split('-')
-            return Number(year) === selectedYear && Number(month) === selectedMonth
-          })
-          
-          const dailyX = dailyForMonth.map(d => d.date)
-          const dailyTempMax = dailyForMonth.map(d => d.temperatureMax ?? null)
-          const dailyTempMin = dailyForMonth.map(d => d.temperatureMin ?? null)
-          const dailyPrecip = dailyForMonth.map(d => d.precipitationSum ?? null)
-          
-          return (
-            <div className={styles.detailContent}>
-              {selected && (
-                <div className={styles.statGrid}>
-                  <div className={styles.statBox}>
-                    <div className={styles.statLabel}>월별 평균기온</div>
-                    <div className={styles.statValue}>{formatNumberWithUnit(selected.meanTemp, '°C')}</div>
-                  </div>
-                  <div className={styles.statBox}>
-                    <div className={styles.statLabel}>월별 강수량</div>
-                    <div className={styles.statValue}>{formatNumberWithUnit(selected.totalPrecipitation, 'mm')}</div>
-                  </div>
-                  <div className={styles.statBox}>
-                    <div className={styles.statLabel}>관측 일수</div>
-                    <div className={styles.statValue}>{selected.daysCounted}일</div>
-                  </div>
-                </div>
-              )}
+          {selectedYear && selectedMonth && (() => {
+            const selected = monthly.find(m => m.year === selectedYear && m.month === selectedMonth)
+            const dailyForMonth = daily.filter(d => {
+              const [year, month] = d.date.split('-')
+              return Number(year) === selectedYear && Number(month) === selectedMonth
+            })
 
-              {dailyForMonth.length > 0 && (
-                <>
-                  <div>
-                    <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 600 }}>일별 그래프</h3>
-                    <Plot
-                      data={[
-                        {
-                          x: dailyX,
-                          y: dailyTempMax,
-                          type: 'scatter',
-                          mode: 'lines+markers',
-                          name: '최고기온',
-                          line: { color: '#d62728' }
-                        },
-                        {
-                          x: dailyX,
-                          y: dailyTempMin,
-                          type: 'scatter',
-                          mode: 'lines+markers',
-                          name: '최저기온',
-                          line: { color: '#1f77b4' }
-                        },
-                        {
-                          x: dailyX,
-                          y: dailyPrecip,
-                          type: 'bar',
-                          name: '강수량',
-                          yaxis: 'y2',
-                          marker: { color: '#2ca02c' },
-                          opacity: 0.6
-                        }
-                      ] as any}
-                      layout={{
-                        margin: { t: 20, r: 50, l: 50, b: 80 },
-                        xaxis: { title: '날짜', tickangle: -45 },
-                        yaxis: { title: '기온 (°C)', side: 'left' },
-                        yaxis2: { title: '강수량 (mm)', overlaying: 'y', side: 'right' },
-                        legend: { orientation: 'h', y: -0.25 }
-                      } as any}
-                      style={{ width: '100%', height: '420px' }}
-                      useResizeHandler={true}
-                    />
-                  </div>
+            const dailyX = dailyForMonth.map(d => d.date)
+            const dailyTempMax = dailyForMonth.map(d => d.temperatureMax ?? null)
+            const dailyTempMin = dailyForMonth.map(d => d.temperatureMin ?? null)
+            const dailyPrecip = dailyForMonth.map(d => d.precipitationSum ?? null)
 
-                  <div className={styles.collapsibleSection}>
-                    <div
-                      className={styles.sectionHeader}
-                      onClick={() => setExpandedDailyTable(!expandedDailyTable)}
-                    >
-                      <span className={`${styles.sectionToggle} ${!expandedDailyTable ? styles.collapsed : ''}`}>▼</span>
-                      일별 데이터 표
+            return (
+              <div className={styles.detailContent}>
+                {selected && (
+                  <div className={styles.statGrid}>
+                    <div className={styles.statBox}>
+                      <div className={styles.statLabel}>월별 평균기온</div>
+                      <div className={styles.statValue}>{formatNumberWithUnit(selected.meanTemp, '°C')}</div>
                     </div>
-                    {expandedDailyTable && (
-                      <div style={{ overflowX: 'auto' }}>
-                        <table className={styles.dataTable}>
-                        <thead className={styles.dataTableHeader}>
-                          <tr>
-                            <th>날짜</th>
-                            <th>최고기온 (°C)</th>
-                            <th>최저기온 (°C)</th>
-                            <th>강수량 (mm)</th>
-                          </tr>
-                        </thead>
-                        <tbody className={styles.dataTableBody}>
-                          {dailyForMonth.map(d => (
-                            <tr key={d.date}>
-                              <td>{d.date}</td>
-                              <td>{formatNumberWithUnit(d.temperatureMax, '°C')}</td>
-                              <td>{formatNumberWithUnit(d.temperatureMin, '°C')}</td>
-                              <td>{formatNumberWithUnit(d.precipitationSum, 'mm')}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      </div>
-                    )}
+                    <div className={styles.statBox}>
+                      <div className={styles.statLabel}>월별 강수량</div>
+                      <div className={styles.statValue}>{formatNumberWithUnit(selected.totalPrecipitation, 'mm')}</div>
+                    </div>
+                    <div className={styles.statBox}>
+                      <div className={styles.statLabel}>관측 일수</div>
+                      <div className={styles.statValue}>{selected.daysCounted}일</div>
+                    </div>
                   </div>
-                </>
-              )}
-            </div>
-          )
-        })()}
-      </div>
+                )}
+
+                {dailyForMonth.length > 0 && (
+                  <>
+                    <div>
+                      <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 600 }}>일별 그래프</h3>
+                      <Plot
+                        data={[
+                          {
+                            x: dailyX,
+                            y: dailyTempMax,
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            name: '최고기온',
+                            line: { color: '#d62728' }
+                          },
+                          {
+                            x: dailyX,
+                            y: dailyTempMin,
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            name: '최저기온',
+                            line: { color: '#1f77b4' }
+                          },
+                          {
+                            x: dailyX,
+                            y: dailyPrecip,
+                            type: 'bar',
+                            name: '강수량',
+                            yaxis: 'y2',
+                            marker: { color: '#2ca02c' },
+                            opacity: 0.6
+                          }
+                        ] as any}
+                        layout={{
+                          margin: { t: 20, r: 50, l: 50, b: 80 },
+                          xaxis: { title: '날짜', tickangle: -45 },
+                          yaxis: { title: '기온 (°C)', side: 'left' },
+                          yaxis2: { title: '강수량 (mm)', overlaying: 'y', side: 'right' },
+                          legend: { orientation: 'h', y: -0.25 }
+                        } as any}
+                        style={{ width: '100%', height: '420px' }}
+                        useResizeHandler={true}
+                      />
+                    </div>
+
+                    <div className={styles.collapsibleSection}>
+                      <div
+                        className={styles.sectionHeader}
+                        onClick={() => setExpandedDailyTable(!expandedDailyTable)}
+                      >
+                        <span className={`${styles.sectionToggle} ${!expandedDailyTable ? styles.collapsed : ''}`}>▼</span>
+                        일별 데이터 표
+                      </div>
+                      {expandedDailyTable && (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table className={styles.dataTable}>
+                            <thead className={styles.dataTableHeader}>
+                              <tr>
+                                <th>날짜</th>
+                                <th>최고기온 (°C)</th>
+                                <th>최저기온 (°C)</th>
+                                <th>강수량 (mm)</th>
+                              </tr>
+                            </thead>
+                            <tbody className={styles.dataTableBody}>
+                              {dailyForMonth.map(d => (
+                                <tr key={d.date}>
+                                  <td>{d.date}</td>
+                                  <td>{formatNumberWithUnit(d.temperatureMax, '°C')}</td>
+                                  <td>{formatNumberWithUnit(d.temperatureMin, '°C')}</td>
+                                  <td>{formatNumberWithUnit(d.precipitationSum, 'mm')}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )
+          })()}
+        </div>
+      )}
 
       {/* Meta Info */}
       <div className={styles.detailCard}>

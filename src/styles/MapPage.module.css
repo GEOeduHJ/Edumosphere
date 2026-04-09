@@ -112,7 +112,9 @@
   box-shadow: var(--shadow-sm);
   border: 1px solid rgba(0, 0, 0, 0.06);
   overflow: hidden;
-  min-height: 500px;
+  /* Make the map area larger for better usability */
+  min-height: 72vh;
+  height: 72vh;
 }
 
 .mapContainer {
@@ -177,7 +179,8 @@
   }
 
   .mapWrapper {
-    min-height: 400px;
+    min-height: 60vh;
+    height: 60vh;
   }
 }
 
@@ -191,7 +194,7 @@
   }
 
   .mapWrapper {
-    min-height: 300px;
+    min-height: 50vh;
     border-radius: 8px;
   }
 }

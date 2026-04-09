@@ -158,7 +158,8 @@ const MapPage: React.FC = () => {
       const leafletImage = mod.default || mod
 
       const gj = await fetchWorldCountries()
-      let features = Array.isArray(gj && gj.features) ? gj.features : []
+      let features: any[] = []
+      if (gj && Array.isArray((gj as any).features)) features = (gj as any).features
       // If the world composite isn't available (e.g., LFS pointer deployed),
       // fetch ADM0 per-selected-country using the server proxy.
       if ((!features || features.length === 0 || !features.some((f: any) => f && f.geometry)) && selectedCountries && selectedCountries.length > 0) {
@@ -194,7 +195,7 @@ const MapPage: React.FC = () => {
               for (const f of features) {
                 const name = getLabelText(f)
                 if (!name || !selectedNameSet.has(name)) continue
-                const geom = f && f.geometry
+                const geom: any = f && (f as any).geometry
                 if (!geom || !geom.coordinates) continue
 
                 const coords: Array<[number, number]> = []

@@ -7,6 +7,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     <div className="app-shell">
       <header>
         <nav>
+          <NavLink to="/">홈</NavLink>
           <NavLink to="/setup">데이터 설정</NavLink>
           <NavLink to="/view">데이터 보기</NavLink>
           <NavLink to="/compare">지점 비교</NavLink>
