@@ -14,7 +14,7 @@ import BasemapBoundaries from '../components/map/BasemapBoundaries'
 import Graticule from '../components/map/Graticule'
 import { getLabelText } from '../utils/label'
 import { SelectedCountry } from '../types/country'
-import { fetchWorldCountries, getNameToIsoMap } from '../services/geoBoundaries'
+import { fetchWorldCountries, getNameToIsoMap, fetchAdminBoundaries } from '../services/geoBoundaries'
 import AdminBoundariesLayer from '../components/map/AdminBoundariesLayer'
 import CountryComparePanel from '../components/features/CountryComparePanel'
 
@@ -157,9 +157,22 @@ const MapPage: React.FC = () => {
       const mod: any = await import('leaflet-image')
       const leafletImage = mod.default || mod
 
-      const featuresResp = await fetch('/data/geoBoundaries/ADM0.geojson')
-      const gj = await featuresResp.json()
-      const features = Array.isArray(gj && gj.features) ? gj.features : []
+      const gj = await fetchWorldCountries()
+      let features = Array.isArray(gj && gj.features) ? gj.features : []
+      // If the world composite isn't available (e.g., LFS pointer deployed),
+      // fetch ADM0 per-selected-country using the server proxy.
+      if ((!features || features.length === 0 || !features.some((f: any) => f && f.geometry)) && selectedCountries && selectedCountries.length > 0) {
+        features = []
+        const nameMap = getNameToIsoMap()
+        for (const sc of selectedCountries) {
+          try {
+            const iso = (nameMap && nameMap[sc.name]) || sc.iso3 || ''
+            if (!iso) continue
+            const fc = await fetchAdminBoundaries(iso, 'ADM0')
+            if (fc && Array.isArray(fc.features)) features.push(...fc.features)
+          } catch (e) {}
+        }
+      }
 
       await new Promise<void>((resolve, reject) => {
         try {

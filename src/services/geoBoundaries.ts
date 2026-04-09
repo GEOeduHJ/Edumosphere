@@ -62,38 +62,95 @@ export async function fetchWorldCountries(): Promise<FeatureCollection | null> {
   if (worldCache) return worldCache
   try {
     const res = await fetch('/data/geoBoundaries/ADM0.geojson')
-    if (!res.ok) return null
-    const json = await res.json()
-    if (!json || !Array.isArray(json.features)) return null
-    worldCache = json as FeatureCollection
-    // build caches
-    const nameMap: Record<string,string> = {}
-    const isoMap = new Map<string, Feature[]>()
-    for (const f of worldCache.features as Feature[]) {
-      try {
-        const name = getLabelText(f)
-        const iso = tryIsoFromProps(f.properties)
-        if (name) {
-          const norm = normalizeName(name)
-          if (iso) {
-            if (!nameMap[name]) nameMap[name] = iso
-            if (!nameMap[norm]) nameMap[norm] = iso
-          } else {
-            // if feature lacks ISO but name present, still record the original name -> null placeholder
-            if (!nameMap[name]) nameMap[name] = nameMap[name] || null as any
-            if (!nameMap[norm]) nameMap[norm] = nameMap[norm] || null as any
+    if (res && res.ok) {
+      // read as text first to detect Git LFS pointer files that look like:
+      // "version https://git-lfs.github.com/spec/v1"
+      const txt = await res.text()
+      if (typeof txt === 'string' && txt.trim().startsWith('version https://git-lfs.github.com/spec/v1')) {
+        // LFS pointer detected; fall through to lightweight fallback
+      } else {
+        try {
+          const json = JSON.parse(txt)
+          if (json && Array.isArray(json.features)) {
+            worldCache = json as FeatureCollection
+            // build caches
+            const nameMap: Record<string,string> = {}
+            const isoMap = new Map<string, Feature[]>()
+            for (const f of worldCache.features as Feature[]) {
+              try {
+                const name = getLabelText(f)
+                const iso = tryIsoFromProps(f.properties)
+                if (name) {
+                  const norm = normalizeName(name)
+                  if (iso) {
+                    if (!nameMap[name]) nameMap[name] = iso
+                    if (!nameMap[norm]) nameMap[norm] = iso
+                  } else {
+                    if (!nameMap[name]) nameMap[name] = nameMap[name] || null as any
+                    if (!nameMap[norm]) nameMap[norm] = nameMap[norm] || null as any
+                  }
+                }
+                if (iso) {
+                  const arr = isoMap.get(iso) || []
+                  arr.push(f)
+                  isoMap.set(iso, arr)
+                }
+              } catch (e) {}
+            }
+            nameToIsoCache = nameMap
+            isoToFeaturesCache = isoMap
+            return worldCache
           }
+        } catch (e) {
+          // JSON parse failed; fall through to fallback below
         }
-        if (iso) {
-          const arr = isoMap.get(iso) || []
-          arr.push(f)
-          isoMap.set(iso, arr)
-        }
-      } catch (e) {}
+      }
     }
-    nameToIsoCache = nameMap
-    isoToFeaturesCache = isoMap
-    return worldCache
+
+    // Fallback: if local ADM0 isn't available (or is an LFS pointer), use restcountries
+    // to build a lightweight name->ISO map and a placeholder FeatureCollection so the
+    // app can list countries and map names->ISO. Geometry will be requested per-ISO
+    // using `fetchAdminBoundaries` when needed.
+    try {
+      const r = await fetch('https://restcountries.com/v3.1/all')
+      if (!r.ok) return null
+      const arr = await r.json()
+      if (!Array.isArray(arr)) return null
+      const features: Feature[] = []
+      const nameMap: Record<string,string> = {}
+      const isoMap = new Map<string, Feature[]>()
+      for (const c of arr) {
+        try {
+          const common = (c && c.name && (c.name.common || c.name.official)) || c.name || (c && c.translations && Object.values(c.translations)[0]) || null
+          const name = typeof common === 'string' ? common : (c.name && c.name.common) || ''
+          const iso = (c && (c.cca3 || c.CCA3 || c.ccn3)) || null
+          const props: any = { NAME: name }
+          if (iso) props['CCA3'] = iso
+          // placeholder feature without geometry; consumers must request real geometries as needed
+          features.push({ type: 'Feature', properties: props, geometry: null as any })
+          if (name) {
+            const norm = normalizeName(name)
+            if (iso) {
+              nameMap[name] = iso
+              nameMap[norm] = iso
+            } else {
+              if (!nameMap[name]) nameMap[name] = nameMap[name] || null as any
+              if (!nameMap[norm]) nameMap[norm] = nameMap[norm] || null as any
+            }
+          }
+          if (iso) {
+            isoMap.set(String(iso).toUpperCase(), [])
+          }
+        } catch (e) {}
+      }
+      const pseudo: FeatureCollection = { type: 'FeatureCollection', features }
+      worldCache = pseudo
+      nameToIsoCache = nameMap
+      isoToFeaturesCache = isoMap
+      return worldCache
+    } catch (e) {
+      return null
+    }
   } catch (e) {
     return null
   }

@@ -210,7 +210,18 @@ const GeoJsonLayer: React.FC<Props> = ({
   useEffect(() => {
     let mounted = true
     fetch(dataUrl)
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error('fetch failed: ' + r.status)
+        const txt = await r.text()
+        if (typeof txt === 'string' && txt.trim().startsWith('version https://git-lfs.github.com/spec/v1')) {
+          throw new Error('Git LFS pointer returned for ' + dataUrl)
+        }
+        try {
+          return JSON.parse(txt) as FeatureCollection
+        } catch (e) {
+          throw e
+        }
+      })
       .then((json: FeatureCollection) => {
         if (!mounted) return
         dataRef.current = json
@@ -232,7 +243,6 @@ const GeoJsonLayer: React.FC<Props> = ({
         onLoad && onLoad(L.geoJSON())
       })
       .catch(err => {
-        // surface fetch error on window for diagnostics and console
         try {
           ;(window as any).__geojsonFetchError = String(err || 'fetch error')
         } catch (e) {}
